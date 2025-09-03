@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Modal, TextInput, Alert, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SHADOWS, SPACING, TYPOGRAPHY, BORDER_RADIUS } from '../utils/constants';
 
 const EmergencyModal = ({ visible, onClose, onSubmit, currentLocation }) => {
@@ -7,11 +8,11 @@ const EmergencyModal = ({ visible, onClose, onSubmit, currentLocation }) => {
   const [description, setDescription] = useState('');
 
   const emergencyTypes = [
-    { id: 'accidente', label: 'Accidente', icon: '🚗' },
-    { id: 'averia', label: 'Avería del vehículo', icon: '⚙️' },
-    { id: 'salud', label: 'Problema de salud', icon: '🏥' },
-    { id: 'seguridad', label: 'Problema de seguridad', icon: '🚨' },
-    { id: 'otro', label: 'Otro', icon: '❓' },
+    { id: 'accidente', label: 'Accidente', iconName: 'car-outline' },
+    { id: 'averia', label: 'Avería del vehículo', iconName: 'construct-outline' },
+    { id: 'salud', label: 'Problema de salud', iconName: 'medical-outline' },
+    { id: 'seguridad', label: 'Problema de seguridad', iconName: 'shield-outline' },
+    { id: 'otro', label: 'Otro', iconName: 'help-circle-outline' },
   ];
 
   const handleSubmit = () => {
@@ -46,9 +47,12 @@ const EmergencyModal = ({ visible, onClose, onSubmit, currentLocation }) => {
         <View style={styles.container}>
           {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.title}>🚨 Reportar Emergencia</Text>
+            <View style={styles.titleContainer}>
+              <Ionicons name="alert-circle" size={24} color={COLORS.error[700]} />
+              <Text style={styles.title}>Reportar Emergencia</Text>
+            </View>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Text style={styles.closeButtonText}>✕</Text>
+              <Ionicons name="close" size={20} color={COLORS.secondary[600]} />
             </TouchableOpacity>
           </View>
           
@@ -65,7 +69,11 @@ const EmergencyModal = ({ visible, onClose, onSubmit, currentLocation }) => {
                   ]}
                   onPress={() => setEmergencyType(type.id)}
                 >
-                  <Text style={styles.typeIcon}>{type.icon}</Text>
+                  <Ionicons 
+                    name={type.iconName} 
+                    size={20} 
+                    color={emergencyType === type.id ? COLORS.error[700] : COLORS.secondary[600]} 
+                  />
                   <Text style={[
                     styles.typeLabel,
                     emergencyType === type.id && styles.selectedTypeLabel
@@ -102,7 +110,8 @@ const EmergencyModal = ({ visible, onClose, onSubmit, currentLocation }) => {
               style={styles.submitButton}
               onPress={handleSubmit}
             >
-              <Text style={styles.submitButtonText}>🚨 Reportar Emergencia</Text>
+              <Ionicons name="alert-circle" size={16} color={COLORS.white} />
+              <Text style={styles.submitButtonText}>Reportar Emergencia</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -137,11 +146,16 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: BORDER_RADIUS.xl,
     borderTopRightRadius: BORDER_RADIUS.xl,
   },
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
   title: {
     fontSize: TYPOGRAPHY.sizes.xl,
     fontWeight: TYPOGRAPHY.weights.bold,
     color: COLORS.error[700],
-    flex: 1,
+    marginLeft: SPACING.sm,
   },
   closeButton: {
     width: 32,
@@ -150,10 +164,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.secondary[200],
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  closeButtonText: {
-    fontSize: TYPOGRAPHY.sizes.lg,
-    color: COLORS.secondary[600],
   },
   content: {
     padding: SPACING.lg,
@@ -181,19 +191,18 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xs,
     borderWidth: 2,
     borderColor: 'transparent',
+    minWidth: '45%',
   },
   selectedType: {
     backgroundColor: COLORS.error[100],
     borderColor: COLORS.error[500],
   },
-  typeIcon: {
-    fontSize: TYPOGRAPHY.sizes.base,
-    marginRight: SPACING.xs,
-  },
   typeLabel: {
     fontSize: TYPOGRAPHY.sizes.sm,
     color: COLORS.secondary[700],
     fontWeight: TYPOGRAPHY.weights.medium,
+    marginLeft: SPACING.xs,
+    flex: 1,
   },
   selectedTypeLabel: {
     color: COLORS.error[700],
@@ -246,6 +255,7 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.sizes.base,
     fontWeight: TYPOGRAPHY.weights.bold,
     color: COLORS.white,
+    marginLeft: SPACING.xs,
   },
 });
 

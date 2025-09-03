@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Alert, ScrollView, ActivityIndicator, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigation } from '@react-navigation/native';
 import { COLORS, SHADOWS, SPACING, TYPOGRAPHY, BORDER_RADIUS } from '../utils/constants';
-import { Ionicons } from '@expo/vector-icons';
 
 const RegisterScreen = () => {
   const [formData, setFormData] = useState({
@@ -157,7 +157,10 @@ const RegisterScreen = () => {
         {/* Form */}
         <View style={styles.formContainer}>
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Información de Cuenta</Text>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="person-add-outline" size={20} color={COLORS.primary[700]} />
+              <Text style={styles.sectionTitle}>Información de Cuenta</Text>
+            </View>
             
             {/* Email Field */}
             <View style={styles.inputGroup}>
@@ -309,7 +312,10 @@ const RegisterScreen = () => {
 
           {/* Password Requirements */}
           <View style={styles.requirementsContainer}>
-            <Text style={styles.requirementsTitle}>Requisitos de contraseña:</Text>
+            <View style={styles.requirementsHeader}>
+              <Ionicons name="shield-checkmark-outline" size={18} color={COLORS.secondary[600]} />
+              <Text style={styles.requirementsTitle}>Requisitos de contraseña:</Text>
+            </View>
             <View style={styles.requirementsGrid}>
               <PasswordRequirement met={formData.password.length >= 6}>
                 Mínimo 6 caracteres
@@ -384,7 +390,7 @@ const RegisterScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)',
+    backgroundColor: COLORS.slate[50],
   },
   scrollContent: {
     flexGrow: 1,
@@ -417,7 +423,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: BORDER_RADIUS.full,
-    backgroundColor: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+    backgroundColor: COLORS.primary[600],
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: SPACING.md,
@@ -445,14 +451,19 @@ const styles = StyleSheet.create({
   section: {
     marginBottom: SPACING.lg,
   },
-  sectionTitle: {
-    fontSize: TYPOGRAPHY.sizes.lg,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    color: COLORS.blue[700],
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: SPACING.lg,
     paddingBottom: SPACING.sm,
     borderBottomWidth: 2,
     borderBottomColor: COLORS.blue[100],
+  },
+  sectionTitle: {
+    fontSize: TYPOGRAPHY.sizes.lg,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: COLORS.blue[700],
+    marginLeft: SPACING.sm,
   },
   inputGroup: {
     marginBottom: SPACING.lg,
@@ -528,7 +539,6 @@ const styles = StyleSheet.create({
   strengthFill: {
     height: '100%',
     borderRadius: 2,
-    transition: 'width 0.3s ease',
   },
   requirementsContainer: {
     backgroundColor: COLORS.slate[50],
@@ -536,11 +546,16 @@ const styles = StyleSheet.create({
     padding: SPACING.md,
     marginBottom: SPACING.lg,
   },
+  requirementsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: SPACING.sm,
+  },
   requirementsTitle: {
     fontSize: TYPOGRAPHY.sizes.sm,
     fontWeight: TYPOGRAPHY.weights.semibold,
     color: COLORS.slate[700],
-    marginBottom: SPACING.sm,
+    marginLeft: SPACING.xs,
   },
   requirementsGrid: {
     gap: SPACING.xs,
@@ -609,7 +624,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   registerButton: {
-    backgroundColor: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+    backgroundColor: COLORS.primary[600],
     borderRadius: BORDER_RADIUS.lg,
     paddingVertical: SPACING.lg,
     flexDirection: 'row',

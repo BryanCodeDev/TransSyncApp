@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Alert, ActivityIndicator, StyleSheet, KeyboardAvoidingView, ScrollView, Platform } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigation } from '@react-navigation/native';
 import { COLORS, SHADOWS, SPACING, TYPOGRAPHY, BORDER_RADIUS, getColor } from '../utils/constants';
@@ -60,7 +61,7 @@ const LoginScreen = () => {
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.logoContainer}>
-            <Text style={styles.logoIcon}>🚌</Text>
+            <Ionicons name="bus" size={40} color={COLORS.white} />
           </View>
           <Text style={styles.appTitle}>TransSync</Text>
           <Text style={styles.appSubtitle}>Conductor</Text>
@@ -75,7 +76,12 @@ const LoginScreen = () => {
               styles.inputContainer,
               formTouched && !isEmailValid(email) && email && styles.inputError
             ]}>
-              <Text style={styles.inputIcon}>📧</Text>
+              <Ionicons 
+                name="mail-outline" 
+                size={20} 
+                color={COLORS.secondary[500]} 
+                style={styles.inputIcon}
+              />
               <TextInput
                 style={styles.textInput}
                 placeholder="correo@ejemplo.com"
@@ -89,7 +95,7 @@ const LoginScreen = () => {
             </View>
             {formTouched && !isEmailValid(email) && email && (
               <View style={styles.errorContainer}>
-                <Text style={styles.errorIcon}>⚠️</Text>
+                <Ionicons name="alert-circle" size={16} color={getColor('error.500', '#ef4444')} />
                 <Text style={styles.errorText}>Por favor ingrese un correo válido</Text>
               </View>
             )}
@@ -101,7 +107,12 @@ const LoginScreen = () => {
               styles.inputContainer,
               formTouched && !isPasswordValid(password) && password && styles.inputError
             ]}>
-              <Text style={styles.inputIcon}>🔒</Text>
+              <Ionicons 
+                name="lock-closed-outline" 
+                size={20} 
+                color={COLORS.secondary[500]} 
+                style={styles.inputIcon}
+              />
               <TextInput
                 style={styles.textInput}
                 placeholder="Tu contraseña"
@@ -115,12 +126,16 @@ const LoginScreen = () => {
                 onPress={() => setShowPassword(!showPassword)}
                 style={styles.eyeButton}
               >
-                <Text style={styles.eyeIcon}>{showPassword ? '🙈' : '👁️'}</Text>
+                <Ionicons 
+                  name={showPassword ? 'eye-off' : 'eye'} 
+                  size={20} 
+                  color={COLORS.secondary[500]} 
+                />
               </TouchableOpacity>
             </View>
             {formTouched && !isPasswordValid(password) && password && (
               <View style={styles.errorContainer}>
-                <Text style={styles.errorIcon}>⚠️</Text>
+                <Ionicons name="alert-circle" size={16} color={getColor('error.500', '#ef4444')} />
                 <Text style={styles.errorText}>La contraseña debe tener al menos 6 caracteres</Text>
               </View>
             )}
@@ -137,7 +152,7 @@ const LoginScreen = () => {
                 rememberMe && styles.checkboxSelected
               ]}>
                 {rememberMe && (
-                  <Text style={styles.checkmark}>✓</Text>
+                  <Ionicons name="checkmark" size={14} color={COLORS.white} />
                 )}
               </View>
               <Text style={styles.rememberText}>Recordarme</Text>
@@ -154,7 +169,7 @@ const LoginScreen = () => {
             ) : (
               <>
                 <Text style={styles.loginButtonText}>Iniciar Sesión</Text>
-                <Text style={styles.loginButtonIcon}>→</Text>
+                <Ionicons name="arrow-forward" size={20} color={COLORS.white} />
               </>
             )}
           </TouchableOpacity>
@@ -212,9 +227,6 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
   },
-  logoIcon: {
-    fontSize: 40,
-  },
   appTitle: {
     fontSize: TYPOGRAPHY?.sizes?.xxxl || 32,
     fontWeight: 'bold',
@@ -266,7 +278,6 @@ const styles = StyleSheet.create({
     borderWidth: 2,
   },
   inputIcon: {
-    fontSize: 20,
     marginRight: SPACING?.sm || 8,
   },
   textInput: {
@@ -278,19 +289,13 @@ const styles = StyleSheet.create({
   eyeButton: {
     padding: SPACING?.xs || 4,
   },
-  eyeIcon: {
-    fontSize: 20,
-  },
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: SPACING?.xs || 4,
   },
-  errorIcon: {
-    fontSize: 16,
-    marginRight: SPACING?.xs || 4,
-  },
   errorText: {
+    marginLeft: SPACING?.xs || 4,
     fontSize: TYPOGRAPHY?.sizes?.sm || 14,
     color: getColor('error.600', '#dc2626'),
   },
@@ -314,11 +319,6 @@ const styles = StyleSheet.create({
   checkboxSelected: {
     backgroundColor: getColor('primary.600', '#2563eb'),
     borderColor: getColor('primary.600', '#2563eb'),
-  },
-  checkmark: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: 'bold',
   },
   rememberText: {
     fontSize: TYPOGRAPHY?.sizes?.sm || 14,
@@ -347,11 +347,6 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY?.sizes?.lg || 18,
     fontWeight: 'bold',
     marginRight: SPACING?.sm || 8,
-  },
-  loginButtonIcon: {
-    color: '#FFFFFF',
-    fontSize: 20,
-    fontWeight: 'bold',
   },
   forgotPasswordButton: {
     alignItems: 'center',

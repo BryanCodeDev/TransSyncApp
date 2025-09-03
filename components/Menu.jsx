@@ -1,20 +1,20 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SHADOWS, SPACING, TYPOGRAPHY, BORDER_RADIUS } from '../utils/constants';
 
-const Menu = ({ onEmergencyPress, currentRoute, assignedVehicle }) => {
-  const MenuIcon = ({ icon, label, onPress, type = 'default' }) => (
+const Menu = ({ onEmergencyPress, currentRoute, assignedVehicle, onToggleOnline, isOnline, onRefresh, loading }) => {
+  const MenuIcon = ({ iconName, label, onPress, type = 'default' }) => (
     <TouchableOpacity style={styles.menuItem} onPress={onPress}>
       <View style={[
         styles.iconContainer,
         type === 'emergency' ? styles.emergencyIcon : styles.defaultIcon
       ]}>
-        <Text style={[
-          styles.iconText,
-          type === 'emergency' ? styles.emergencyText : styles.defaultText
-        ]}>
-          {icon}
-        </Text>
+        <Ionicons 
+          name={iconName} 
+          size={24} 
+          color={type === 'emergency' ? COLORS.error[600] : COLORS.primary[600]} 
+        />
       </View>
       <Text style={styles.menuLabel}>{label}</Text>
     </TouchableOpacity>
@@ -27,12 +27,15 @@ const Menu = ({ onEmergencyPress, currentRoute, assignedVehicle }) => {
         <View style={styles.infoRow}>
           <View style={styles.infoItem}>
             <Text style={styles.infoLabel}>Vehículo asignado</Text>
-            <Text style={styles.infoValue}>
-              {assignedVehicle 
-                ? `${assignedVehicle.marVehiculo} ${assignedVehicle.modVehiculo} - ${assignedVehicle.plaVehiculo}` 
-                : 'No asignado'
-              }
-            </Text>
+            <View style={styles.vehicleInfo}>
+              <Ionicons name="bus-outline" size={16} color={COLORS.secondary[600]} />
+              <Text style={styles.infoValue}>
+                {assignedVehicle 
+                  ? `${assignedVehicle.marVehiculo} ${assignedVehicle.modVehiculo} - ${assignedVehicle.plaVehiculo}` 
+                  : 'No asignado'
+                }
+              </Text>
+            </View>
           </View>
           
           <View style={styles.infoItem}>
@@ -43,6 +46,11 @@ const Menu = ({ onEmergencyPress, currentRoute, assignedVehicle }) => {
                 ? styles.activeBadge 
                 : styles.inactiveBadge
             ]}>
+              <Ionicons 
+                name={assignedVehicle?.estVehiculo?.toLowerCase() === 'activo' ? 'checkmark-circle' : 'close-circle'} 
+                size={12} 
+                color={assignedVehicle?.estVehiculo?.toLowerCase() === 'activo' ? COLORS.success[700] : COLORS.error[700]} 
+              />
               <Text style={[
                 styles.statusText,
                 assignedVehicle?.estVehiculo?.toLowerCase() === 'activo' 
@@ -57,38 +65,68 @@ const Menu = ({ onEmergencyPress, currentRoute, assignedVehicle }) => {
         
         {currentRoute && (
           <View style={styles.routeInfo}>
-            <Text style={styles.infoLabel}>Ruta actual</Text>
+            <View style={styles.routeHeader}>
+              <Ionicons name="git-branch-outline" size={16} color={COLORS.primary[600]} />
+              <Text style={styles.infoLabel}>Ruta actual</Text>
+            </View>
             <Text style={styles.routeName}>{currentRoute.nomRuta}</Text>
-            <Text style={styles.routeDirection}>
-              {currentRoute.oriRuta} → {currentRoute.desRuta}
-            </Text>
+            <View style={styles.routeDirection}>
+              <Text style={styles.routeText}>{currentRoute.oriRuta}</Text>
+              <Ionicons name="arrow-forward" size={14} color={COLORS.primary[600]} />
+              <Text style={styles.routeText}>{currentRoute.desRuta}</Text>
+            </View>
           </View>
         )}
+        
+        {/* Online Status Toggle */}
+        <TouchableOpacity 
+          style={[styles.onlineToggle, isOnline ? styles.onlineActive : styles.onlineInactive]}
+          onPress={onToggleOnline}
+        >
+          <Ionicons 
+            name={isOnline ? 'radio-button-on' : 'radio-button-off'} 
+            size={20} 
+            color={isOnline ? COLORS.success[600] : COLORS.error[600]} 
+          />
+          <Text style={[
+            styles.onlineText, 
+            { color: isOnline ? COLORS.success[700] : COLORS.error[700] }
+          ]}>
+            {isOnline ? 'En línea' : 'Fuera de línea'}
+          </Text>
+        </TouchableOpacity>
       </View>
       
       {/* Menu Items */}
       <View style={styles.menuContainer}>
         <MenuIcon 
-          icon="🗺️" 
+          iconName="map-outline" 
           label="Mapa" 
           onPress={() => {}} 
         />
         <MenuIcon 
-          icon="🏠" 
+          iconName="home-outline" 
           label="Inicio" 
           onPress={() => {}} 
         />
         <MenuIcon 
-          icon="🚨" 
+          iconName="alert-circle" 
           label="Emergencia" 
           onPress={onEmergencyPress}
           type="emergency"
         />
-        <MenuIcon 
-          icon="⚙️" 
-          label="Configuración" 
-          onPress={() => {}} 
-        />
+        <TouchableOpacity style={styles.menuItem} onPress={onRefresh} disabled={loading}>
+          <View style={styles.iconContainer}>
+            <Ionicons 
+              name={loading ? "sync" : "refresh-outline"} 
+              size={24} 
+              color={COLORS.primary[600]} 
+            />
+          </View>
+          <Text style={styles.menuLabel}>
+            {loading ? 'Actualizando...' : 'Actualizar'}
+          </Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -125,33 +163,42 @@ const styles = StyleSheet.create({
     color: COLORS.secondary[600],
     marginBottom: 2,
   },
+  vehicleInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   infoValue: {
     fontSize: TYPOGRAPHY.sizes.sm,
     fontWeight: TYPOGRAPHY.weights.semibold,
     color: COLORS.secondary[900],
+    marginLeft: SPACING.xs,
+    flex: 1,
   },
   statusBadge: {
     paddingHorizontal: SPACING.sm,
     paddingVertical: 2,
     borderRadius: BORDER_RADIUS.sm,
     alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   activeBadge: {
     backgroundColor: COLORS.success[100],
   },
   inactiveBadge: {
-    backgroundColor: COLORS.secondary[100],
+    backgroundColor: COLORS.error[100],
   },
   statusText: {
     fontSize: TYPOGRAPHY.sizes.xs,
     fontWeight: TYPOGRAPHY.weights.medium,
     textTransform: 'capitalize',
+    marginLeft: SPACING.xs,
   },
   activeText: {
     color: COLORS.success[700],
   },
   inactiveText: {
-    color: COLORS.secondary[600],
+    color: COLORS.error[700],
   },
   routeInfo: {
     backgroundColor: COLORS.primary[50],
@@ -159,6 +206,12 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.md,
     borderLeftWidth: 4,
     borderLeftColor: COLORS.primary[500],
+    marginBottom: SPACING.sm,
+  },
+  routeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: SPACING.xs,
   },
   routeName: {
     fontSize: TYPOGRAPHY.sizes.base,
@@ -167,8 +220,32 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   routeDirection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+  },
+  routeText: {
     fontSize: TYPOGRAPHY.sizes.sm,
     color: COLORS.primary[600],
+  },
+  onlineToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: BORDER_RADIUS.lg,
+    alignSelf: 'flex-start',
+  },
+  onlineActive: {
+    backgroundColor: COLORS.success[100],
+  },
+  onlineInactive: {
+    backgroundColor: COLORS.error[100],
+  },
+  onlineText: {
+    fontSize: TYPOGRAPHY.sizes.sm,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    marginLeft: SPACING.xs,
   },
   menuContainer: {
     flexDirection: 'row',
@@ -187,13 +264,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: SPACING.xs,
-    ...SHADOWS.small,
-  },
-  defaultIcon: {
     backgroundColor: COLORS.primary[50],
+    ...SHADOWS.small,
   },
   emergencyIcon: {
     backgroundColor: COLORS.error[50],
+  },
+  defaultIcon: {
+    backgroundColor: COLORS.primary[50],
   },
   menuLabel: {
     fontSize: TYPOGRAPHY.sizes.xs,

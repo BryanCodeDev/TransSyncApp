@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { testConnection } from '../services/api';
 import { COLORS, SPACING, TYPOGRAPHY, BORDER_RADIUS, SHADOWS } from '../utils/constants';
 
@@ -46,27 +47,31 @@ const ConnectionTest = () => {
     switch (connectionStatus) {
       case 'checking':
         return {
-          text: 'Verificando conexion...',
+          text: 'Verificando conexión...',
           color: COLORS.warning[600],
-          icon: '🔄'
+          iconName: 'sync',
+          iconColor: COLORS.warning[600]
         };
       case 'connected':
         return {
           text: 'Servidor conectado',
           color: COLORS.success[600],
-          icon: '✅'
+          iconName: 'checkmark-circle',
+          iconColor: COLORS.success[600]
         };
       case 'error':
         return {
-          text: 'Error de conexion',
+          text: 'Error de conexión',
           color: COLORS.error[600],
-          icon: '❌'
+          iconName: 'close-circle',
+          iconColor: COLORS.error[600]
         };
       default:
         return {
           text: 'Estado desconocido',
           color: COLORS.secondary[600],
-          icon: '❓'
+          iconName: 'help-circle',
+          iconColor: COLORS.secondary[600]
         };
     }
   };
@@ -76,13 +81,18 @@ const ConnectionTest = () => {
   return (
     <View style={styles.container}>
       <View style={[styles.statusCard, { borderColor: statusInfo.color }]}>
-        <Text style={styles.statusIcon}>{statusInfo.icon}</Text>
+        <Ionicons 
+          name={statusInfo.iconName} 
+          size={32} 
+          color={statusInfo.iconColor}
+          style={styles.statusIcon}
+        />
         <Text style={[styles.statusText, { color: statusInfo.color }]}>
           {statusInfo.text}
         </Text>
         {lastCheck && (
           <Text style={styles.lastCheck}>
-            Ultima verificacion: {lastCheck}
+            Última verificación: {lastCheck}
           </Text>
         )}
       </View>
@@ -92,7 +102,8 @@ const ConnectionTest = () => {
           style={styles.button}
           onPress={checkConnection}
         >
-          <Text style={styles.buttonText}>Verificar Conexion</Text>
+          <Ionicons name="refresh" size={16} color={COLORS.white} style={styles.buttonIcon} />
+          <Text style={styles.buttonText}>Verificar Conexión</Text>
         </TouchableOpacity>
         
         {serverInfo && (
@@ -100,6 +111,7 @@ const ConnectionTest = () => {
             style={[styles.button, styles.secondaryButton]}
             onPress={showDetails}
           >
+            <Ionicons name="information-circle" size={16} color={COLORS.secondary[700]} style={styles.buttonIcon} />
             <Text style={[styles.buttonText, styles.secondaryButtonText]}>
               Ver Detalles
             </Text>
@@ -109,14 +121,32 @@ const ConnectionTest = () => {
       
       {connectionStatus === 'error' && (
         <View style={styles.errorContainer}>
-          <Text style={styles.errorTitle}>Posibles soluciones:</Text>
-          <Text style={styles.errorText}>
-            • Verifica que el servidor backend este corriendo{'\n'}
-            • Comprueba la URL en services/api.js{'\n'}
-            • Para emulador Android usa: http://10.0.2.2:5000{'\n'}
-            • Para dispositivo fisico usa tu IP local{'\n'}
-            • Revisa la configuracion CORS del servidor
-          </Text>
+          <View style={styles.errorHeader}>
+            <Ionicons name="bulb" size={16} color={COLORS.error[700]} />
+            <Text style={styles.errorTitle}>Posibles soluciones:</Text>
+          </View>
+          <View style={styles.errorList}>
+            <View style={styles.errorItem}>
+              <Ionicons name="ellipse" size={6} color={COLORS.error[600]} />
+              <Text style={styles.errorText}>Verifica que el servidor backend esté corriendo</Text>
+            </View>
+            <View style={styles.errorItem}>
+              <Ionicons name="ellipse" size={6} color={COLORS.error[600]} />
+              <Text style={styles.errorText}>Comprueba la URL en services/api.js</Text>
+            </View>
+            <View style={styles.errorItem}>
+              <Ionicons name="ellipse" size={6} color={COLORS.error[600]} />
+              <Text style={styles.errorText}>Para emulador Android usa: http://10.0.2.2:5000</Text>
+            </View>
+            <View style={styles.errorItem}>
+              <Ionicons name="ellipse" size={6} color={COLORS.error[600]} />
+              <Text style={styles.errorText}>Para dispositivo físico usa tu IP local</Text>
+            </View>
+            <View style={styles.errorItem}>
+              <Ionicons name="ellipse" size={6} color={COLORS.error[600]} />
+              <Text style={styles.errorText}>Revisa la configuración CORS del servidor</Text>
+            </View>
+          </View>
         </View>
       )}
     </View>
@@ -137,7 +167,6 @@ const styles = StyleSheet.create({
     ...SHADOWS.medium,
   },
   statusIcon: {
-    fontSize: 32,
     marginBottom: SPACING.sm,
   },
   statusText: {
@@ -159,8 +188,13 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.lg,
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.lg,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     ...SHADOWS.small,
+  },
+  buttonIcon: {
+    marginRight: SPACING.xs,
   },
   secondaryButton: {
     backgroundColor: COLORS.secondary[100],
@@ -181,16 +215,31 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4,
     borderLeftColor: COLORS.error[500],
   },
+  errorHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: SPACING.sm,
+  },
   errorTitle: {
     fontSize: TYPOGRAPHY.sizes.sm,
     fontWeight: TYPOGRAPHY.weights.bold,
     color: COLORS.error[700],
-    marginBottom: SPACING.xs,
+    marginLeft: SPACING.xs,
+  },
+  errorList: {
+    gap: SPACING.xs,
+  },
+  errorItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingLeft: SPACING.sm,
   },
   errorText: {
     fontSize: TYPOGRAPHY.sizes.xs,
     color: COLORS.error[600],
     lineHeight: 16,
+    marginLeft: SPACING.xs,
+    flex: 1,
   },
 });
 

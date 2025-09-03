@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Alert, ScrollView, ActivityIndicator, StyleSheet, StatusBar } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { driverAPI } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import { COLORS, SHADOWS, SPACING, TYPOGRAPHY, BORDER_RADIUS } from '../utils/constants';
@@ -48,10 +49,10 @@ const ProfileScreen = () => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const InfoField = ({ icon, label, value, editable = false, field, keyboardType = 'default' }) => (
+  const InfoField = ({ iconName, label, value, editable = false, field, keyboardType = 'default' }) => (
     <View style={styles.infoField}>
       <View style={styles.fieldHeader}>
-        <Text style={styles.fieldIcon}>{icon}</Text>
+        <Ionicons name={iconName} size={16} color={COLORS.secondary[600]} />
         <Text style={styles.fieldLabel}>{label}</Text>
       </View>
       {isEditing && editable ? (
@@ -75,8 +76,13 @@ const ProfileScreen = () => {
     const isActive = status?.toLowerCase() === 'activo';
     return (
       <View style={[styles.statusBadge, isActive ? styles.activeBadge : styles.inactiveBadge]}>
+        <Ionicons 
+          name={isActive ? 'checkmark-circle' : 'close-circle'} 
+          size={16} 
+          color={isActive ? COLORS.success[600] : COLORS.error[600]}
+        />
         <Text style={[styles.statusText, isActive ? styles.activeText : styles.inactiveText]}>
-          {isActive ? '🟢' : '🔴'} {status?.charAt(0).toUpperCase() + status?.slice(1).toLowerCase() || 'Inactivo'}
+          {status?.charAt(0).toUpperCase() + status?.slice(1).toLowerCase() || 'Inactivo'}
         </Text>
       </View>
     );
@@ -106,9 +112,7 @@ const ProfileScreen = () => {
         <View style={styles.headerCard}>
           <View style={styles.avatarContainer}>
             <View style={styles.avatar}>
-              <Text style={styles.avatarText}>
-                {profile?.nomConductor?.charAt(0) || 'C'}
-              </Text>
+              <Ionicons name="person" size={40} color={COLORS.white} />
             </View>
             <StatusBadge status={profile?.estConductor} />
           </View>
@@ -128,10 +132,13 @@ const ProfileScreen = () => {
 
         {/* Personal Information */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>👤 Información Personal</Text>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="person-outline" size={20} color={COLORS.primary[700]} />
+            <Text style={styles.sectionTitle}>Información Personal</Text>
+          </View>
           
           <InfoField
-            icon="📝"
+            iconName="person-outline"
             label="Nombre"
             value={profile?.nomConductor}
             editable
@@ -139,7 +146,7 @@ const ProfileScreen = () => {
           />
           
           <InfoField
-            icon="📝"
+            iconName="person-outline"
             label="Apellido"
             value={profile?.apeConductor}
             editable
@@ -147,7 +154,7 @@ const ProfileScreen = () => {
           />
           
           <InfoField
-            icon="📱"
+            iconName="call-outline"
             label="Teléfono"
             value={profile?.telConductor}
             editable
@@ -156,7 +163,7 @@ const ProfileScreen = () => {
           />
           
           <InfoField
-            icon="📧"
+            iconName="mail-outline"
             label="Email"
             value={user?.email}
             editable={false}
@@ -165,24 +172,27 @@ const ProfileScreen = () => {
 
         {/* Professional Information */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🚌 Información Profesional</Text>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="bus-outline" size={20} color={COLORS.primary[700]} />
+            <Text style={styles.sectionTitle}>Información Profesional</Text>
+          </View>
           
           <InfoField
-            icon="📄"
+            iconName="document-text-outline"
             label="Número de Licencia"
             value={profile?.numDocConductor}
             editable={false}
           />
           
           <InfoField
-            icon="🎯"
+            iconName="car-outline"
             label="Tipo de Licencia"
             value={profile?.tipLicConductor}
             editable={false}
           />
           
           <InfoField
-            icon="🏢"
+            iconName="business-outline"
             label="ID Empresa"
             value={profile?.idEmpresa?.toString()}
             editable={false}
@@ -191,7 +201,10 @@ const ProfileScreen = () => {
 
         {/* Stats Card */}
         <View style={styles.statsCard}>
-          <Text style={styles.sectionTitle}>📊 Estadísticas</Text>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="bar-chart-outline" size={20} color={COLORS.primary[700]} />
+            <Text style={styles.sectionTitle}>Estadísticas</Text>
+          </View>
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
               <Text style={styles.statValue}>0</Text>
@@ -234,7 +247,7 @@ const ProfileScreen = () => {
                 ) : (
                   <>
                     <Text style={styles.saveButtonText}>Guardar</Text>
-                    <Text style={styles.saveButtonIcon}>✓</Text>
+                    <Ionicons name="checkmark" size={18} color={COLORS.white} />
                   </>
                 )}
               </TouchableOpacity>
@@ -244,7 +257,7 @@ const ProfileScreen = () => {
               style={styles.editButton}
               onPress={() => setIsEditing(true)}
             >
-              <Text style={styles.editButtonIcon}>✏️</Text>
+              <Ionicons name="create-outline" size={18} color={COLORS.white} />
               <Text style={styles.editButtonText}>Editar Perfil</Text>
             </TouchableOpacity>
           )}
@@ -301,12 +314,9 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.sm,
     ...SHADOWS.small,
   },
-  avatarText: {
-    color: COLORS.white,
-    fontSize: TYPOGRAPHY.sizes.xxxl,
-    fontWeight: TYPOGRAPHY.weights.bold,
-  },
   statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.xs,
     borderRadius: BORDER_RADIUS.lg,
@@ -318,6 +328,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.error[100],
   },
   statusText: {
+    marginLeft: SPACING.xs,
     fontSize: TYPOGRAPHY.sizes.sm,
     fontWeight: TYPOGRAPHY.weights.semibold,
   },
@@ -352,14 +363,19 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.lg,
     ...SHADOWS.small,
   },
-  sectionTitle: {
-    fontSize: TYPOGRAPHY.sizes.lg,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    color: COLORS.primary[700],
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: SPACING.lg,
     paddingBottom: SPACING.sm,
     borderBottomWidth: 2,
     borderBottomColor: COLORS.primary[100],
+  },
+  sectionTitle: {
+    fontSize: TYPOGRAPHY.sizes.lg,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: COLORS.primary[700],
+    marginLeft: SPACING.sm,
   },
   infoField: {
     marginBottom: SPACING.lg,
@@ -369,15 +385,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: SPACING.xs,
   },
-  fieldIcon: {
-    fontSize: TYPOGRAPHY.sizes.base,
-    marginRight: SPACING.sm,
-    width: 20,
-  },
   fieldLabel: {
     fontSize: TYPOGRAPHY.sizes.sm,
     fontWeight: TYPOGRAPHY.weights.semibold,
     color: COLORS.secondary[700],
+    marginLeft: SPACING.sm,
   },
   fieldValue: {
     fontSize: TYPOGRAPHY.sizes.base,
@@ -469,11 +481,6 @@ const styles = StyleSheet.create({
     fontWeight: TYPOGRAPHY.weights.bold,
     marginRight: SPACING.xs,
   },
-  saveButtonIcon: {
-    color: COLORS.white,
-    fontSize: TYPOGRAPHY.sizes.base,
-    fontWeight: TYPOGRAPHY.weights.bold,
-  },
   editButton: {
     backgroundColor: COLORS.primary[600],
     borderRadius: BORDER_RADIUS.lg,
@@ -483,14 +490,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     ...SHADOWS.medium,
   },
-  editButtonIcon: {
-    fontSize: TYPOGRAPHY.sizes.base,
-    marginRight: SPACING.sm,
-  },
   editButtonText: {
     color: COLORS.white,
     fontSize: TYPOGRAPHY.sizes.base,
     fontWeight: TYPOGRAPHY.weights.bold,
+    marginLeft: SPACING.sm,
   },
 });
 

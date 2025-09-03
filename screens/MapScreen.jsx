@@ -1,13 +1,14 @@
 // screens/MapScreen.jsx
 import React, { useState, useEffect } from 'react';
 import { View, Alert, StyleSheet, StatusBar } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import Header from '../components/Header';
 import Menu from '../components/Menu';
 import ProfileModal from '../components/ProfileModal';
 import EmergencyModal from '../components/EmergencyModal';
 import MapView from '../components/MapView';
 import { useAuth } from '../hooks/useAuth';
-import { driverAPI, vehicleAPI, routeAPI } from '../services/api'; // APIs corregidas
+import { driverAPI, vehicleAPI, routeAPI } from '../services/api';
 import { COLORS } from '../utils/constants';
 
 const MapScreen = () => {
@@ -190,10 +191,11 @@ const MapScreen = () => {
             styles.onlineIndicator, 
             isOnline ? styles.online : styles.offline
           ]}>
-            <View style={[
-              styles.onlineDot, 
-              { backgroundColor: isOnline ? COLORS.success[500] : COLORS.error[500] }
-            ]} />
+            <Ionicons 
+              name={isOnline ? 'radio-button-on' : 'radio-button-off'} 
+              size={12} 
+              color={isOnline ? COLORS.success[500] : COLORS.error[500]}
+            />
           </View>
         }
       />
@@ -257,12 +259,6 @@ const styles = StyleSheet.create({
   },
   offline: {
     backgroundColor: 'rgba(239,68,68,0.2)',
-  },
-  onlineDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 6,
   },
 });
 
