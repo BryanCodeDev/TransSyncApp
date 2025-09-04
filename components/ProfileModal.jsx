@@ -3,7 +3,63 @@ import { View, Text, TouchableOpacity, Modal, Image, StyleSheet } from 'react-na
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, TYPOGRAPHY, BORDER_RADIUS, SHADOWS } from '../utils/constants';
 
-const ProfileModal = ({ visible, onClose, user, onLogout, onProfilePress }) => {
+const ProfileModal = ({ 
+  visible, 
+  onClose, 
+  user, 
+  onLogout, 
+  onProfilePress,
+  onNotificationsPress,
+  onSettingsPress,
+  onHelpPress,
+  onAboutPress 
+}) => {
+  
+  const handleOptionPress = (callback) => {
+    onClose(); // Cerrar el modal primero
+    if (callback) {
+      setTimeout(() => callback(), 100); // Pequeño delay para suavizar la transición
+    }
+  };
+
+  const menuOptions = [
+    {
+      icon: 'person-outline',
+      text: 'Mi Perfil',
+      color: COLORS.primary[600],
+      bgColor: COLORS.primary[100],
+      onPress: () => handleOptionPress(onProfilePress),
+    },
+    {
+      icon: 'notifications-outline',
+      text: 'Notificaciones',
+      color: COLORS.warning[600],
+      bgColor: COLORS.warning[100],
+      onPress: () => handleOptionPress(onNotificationsPress),
+    },
+    {
+      icon: 'settings-outline',
+      text: 'Configuración',
+      color: COLORS.secondary[600],
+      bgColor: COLORS.secondary[100],
+      onPress: () => handleOptionPress(onSettingsPress),
+    },
+    {
+      icon: 'help-circle-outline',
+      text: 'Ayuda',
+      color: COLORS.info[600],
+      bgColor: COLORS.info[100],
+      onPress: () => handleOptionPress(onHelpPress),
+    },
+    {
+      icon: 'information-circle-outline',
+      text: 'Acerca de',
+      color: COLORS.success[600],
+      bgColor: COLORS.success[100],
+      onPress: () => handleOptionPress(onAboutPress),
+    }
+  ];
+
   return (
     <Modal
       visible={visible}
@@ -16,7 +72,11 @@ const ProfileModal = ({ visible, onClose, user, onLogout, onProfilePress }) => {
         activeOpacity={1}
         onPress={onClose}
       >
-        <View style={styles.container}>
+        <TouchableOpacity 
+          style={styles.container}
+          activeOpacity={1}
+          onPress={(e) => e.stopPropagation()} // Evitar que se cierre al tocar el contenido
+        >
           {/* Profile Header */}
           <View style={styles.profileSection}>
             <View style={styles.avatarContainer}>
@@ -30,56 +90,45 @@ const ProfileModal = ({ visible, onClose, user, onLogout, onProfilePress }) => {
                   <Ionicons name="person" size={32} color={COLORS.white} />
                 </View>
               )}
+              <View style={styles.onlineIndicator} />
             </View>
             
             <View style={styles.userInfo}>
-              <Text style={styles.userName}>{user?.name || 'Usuario'}</Text>
-              <Text style={styles.userEmail}>{user?.email}</Text>
+              <Text style={styles.userName}>
+                {user?.nomConductor && user?.apeConductor 
+                  ? `${user.nomConductor} ${user.apeConductor}` 
+                  : user?.name || 'Usuario'
+                }
+              </Text>
+              <Text style={styles.userEmail}>{user?.email || 'Sin email'}</Text>
+              <Text style={styles.userRole}>Conductor</Text>
             </View>
           </View>
 
           {/* Menu Options */}
           <View style={styles.menuSection}>
-            <TouchableOpacity 
-              style={styles.menuOption}
-              onPress={onProfilePress}
-            >
-              <View style={styles.menuIconContainer}>
-                <Ionicons name="person-outline" size={20} color={COLORS.primary[600]} />
-              </View>
-              <Text style={styles.menuText}>Mi Perfil</Text>
-              <Ionicons name="chevron-forward" size={16} color={COLORS.secondary[400]} />
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.menuOption}>
-              <View style={styles.menuIconContainer}>
-                <Ionicons name="settings-outline" size={20} color={COLORS.secondary[600]} />
-              </View>
-              <Text style={styles.menuText}>Configuración</Text>
-              <Ionicons name="chevron-forward" size={16} color={COLORS.secondary[400]} />
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.menuOption}>
-              <View style={styles.menuIconContainer}>
-                <Ionicons name="help-circle-outline" size={20} color={COLORS.secondary[600]} />
-              </View>
-              <Text style={styles.menuText}>Ayuda</Text>
-              <Ionicons name="chevron-forward" size={16} color={COLORS.secondary[400]} />
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.menuOption}>
-              <View style={styles.menuIconContainer}>
-                <Ionicons name="information-circle-outline" size={20} color={COLORS.secondary[600]} />
-              </View>
-              <Text style={styles.menuText}>Acerca de</Text>
-              <Ionicons name="chevron-forward" size={16} color={COLORS.secondary[400]} />
-            </TouchableOpacity>
+            {menuOptions.map((option, index) => (
+              <TouchableOpacity 
+                key={index}
+                style={styles.menuOption}
+                onPress={option.onPress}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.menuIconContainer, { backgroundColor: option.bgColor }]}>
+                  <Ionicons name={option.icon} size={20} color={option.color} />
+                </View>
+                <Text style={styles.menuText}>{option.text}</Text>
+                <Ionicons name="chevron-forward" size={16} color={COLORS.secondary[400]} />
+              </TouchableOpacity>
+            ))}
             
             <View style={styles.divider} />
             
+            {/* Logout Option */}
             <TouchableOpacity 
               style={[styles.menuOption, styles.logoutOption]}
-              onPress={onLogout}
+              onPress={() => handleOptionPress(onLogout)}
+              activeOpacity={0.7}
             >
               <View style={[styles.menuIconContainer, styles.logoutIconContainer]}>
                 <Ionicons name="log-out-outline" size={20} color={COLORS.error[600]} />
@@ -88,7 +137,12 @@ const ProfileModal = ({ visible, onClose, user, onLogout, onProfilePress }) => {
               <Ionicons name="chevron-forward" size={16} color={COLORS.error[400]} />
             </TouchableOpacity>
           </View>
-        </View>
+
+          {/* App Version */}
+          <View style={styles.versionSection}>
+            <Text style={styles.versionText}>TransSync v1.0.0</Text>
+          </View>
+        </TouchableOpacity>
       </TouchableOpacity>
     </Modal>
   );
@@ -106,8 +160,8 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: COLORS.white,
     borderRadius: BORDER_RADIUS.xl,
-    width: 280,
-    minHeight: 200,
+    width: 300,
+    maxHeight: '80%',
     ...SHADOWS.large,
   },
   profileSection: {
@@ -120,6 +174,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: BORDER_RADIUS.xl,
   },
   avatarContainer: {
+    position: 'relative',
     marginBottom: SPACING.md,
   },
   profileImage: {
@@ -140,6 +195,17 @@ const styles = StyleSheet.create({
     borderColor: COLORS.white,
     ...SHADOWS.small,
   },
+  onlineIndicator: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: COLORS.success[500],
+    borderWidth: 2,
+    borderColor: COLORS.white,
+  },
   userInfo: {
     alignItems: 'center',
   },
@@ -147,11 +213,22 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.sizes.lg,
     fontWeight: TYPOGRAPHY.weights.bold,
     color: COLORS.secondary[900],
-    marginBottom: SPACING.xs,
+    marginBottom: 2,
+    textAlign: 'center',
   },
   userEmail: {
     fontSize: TYPOGRAPHY.sizes.sm,
     color: COLORS.secondary[600],
+    marginBottom: SPACING.xs,
+  },
+  userRole: {
+    fontSize: TYPOGRAPHY.sizes.xs,
+    color: COLORS.primary[600],
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    backgroundColor: COLORS.primary[100],
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 2,
+    borderRadius: BORDER_RADIUS.sm,
   },
   menuSection: {
     padding: SPACING.md,
@@ -162,12 +239,12 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.sm,
     borderRadius: BORDER_RADIUS.md,
+    marginBottom: 2,
   },
   menuIconContainer: {
     width: 36,
     height: 36,
     borderRadius: BORDER_RADIUS.lg,
-    backgroundColor: COLORS.secondary[100],
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: SPACING.md,
@@ -189,9 +266,21 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: COLORS.secondary[200],
     marginVertical: SPACING.sm,
+    marginHorizontal: SPACING.sm,
   },
   logoutOption: {
     marginTop: SPACING.xs,
+  },
+  versionSection: {
+    alignItems: 'center',
+    paddingVertical: SPACING.md,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.secondary[100],
+  },
+  versionText: {
+    fontSize: TYPOGRAPHY.sizes.xs,
+    color: COLORS.secondary[400],
+    fontWeight: TYPOGRAPHY.weights.medium,
   },
 });
 

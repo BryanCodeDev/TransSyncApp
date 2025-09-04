@@ -1,117 +1,141 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet, SafeAreaView, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, StatusBar, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SHADOWS, SPACING, TYPOGRAPHY, BORDER_RADIUS } from '../utils/constants';
+import { COLORS, SPACING, TYPOGRAPHY, SHADOWS } from '../utils/constants';
 
 const Header = ({ 
-  title = 'TransSync', 
-  onProfilePress, 
+  title, 
   user, 
-  rightComponent,
-  leftComponent,
-  showBackButton = false,
-  onBackPress,
-  backgroundColor = COLORS.primary[600],
-  showNotifications = false,
-  notificationCount = 0,
-  onNotificationsPress
+  onProfilePress, 
+  showNotifications = false, 
+  onNotificationsPress,
+  showBack = false,
+  onBackPress
 }) => {
+  const [notificationCount, setNotificationCount] = useState(0);
+
+  useEffect(() => {
+    // Simular notificaciones - aquí puedes integrar con tu sistema real de notificaciones
+    const simulateNotifications = () => {
+      const mockNotifications = [
+        {
+          id: '1',
+          tipo: 'emergencia',
+          titulo: 'Emergencia reportada',
+          mensaje: 'Se ha reportado una emergencia en tu ruta actual.',
+          fecha: new Date(Date.now() - 30 * 60 * 1000),
+          leida: false,
+          prioridad: 'alta'
+        },
+        {
+          id: '2',
+          tipo: 'sistema',
+          titulo: 'Mantenimiento programado',
+          mensaje: 'Tu vehículo ABC-123 tiene mantenimiento programado.',
+          fecha: new Date(Date.now() - 2 * 60 * 60 * 1000),
+          leida: false,
+          prioridad: 'media'
+        },
+        {
+          id: '3',
+          tipo: 'ruta',
+          titulo: 'Cambio de ruta',
+          mensaje: 'Se ha actualizado tu ruta asignada.',
+          fecha: new Date(Date.now() - 6 * 60 * 60 * 1000),
+          leida: true,
+          prioridad: 'media'
+        }
+      ];
+      
+      // Contar notificaciones no leídas
+      const unreadCount = mockNotifications.filter(n => !n.leida).length;
+      setNotificationCount(unreadCount);
+    };
+
+    simulateNotifications();
+
+    // Opcional: actualizar periódicamente
+    const interval = setInterval(simulateNotifications, 30000); // cada 30 segundos
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Función para manejar el press en notificaciones
+  const handleNotificationsPress = () => {
+    if (onNotificationsPress) {
+      onNotificationsPress();
+    }
+    // Opcional: marcar como vistas al abrir
+    // setNotificationCount(0);
+  };
+
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor }]}>
-      <View style={[styles.container, { backgroundColor }]}>
-        <View style={styles.header}>
-          {/* Left Section */}
-          <View style={styles.leftSection}>
-            {showBackButton ? (
-              <TouchableOpacity 
-                style={styles.backButton}
-                onPress={onBackPress}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="arrow-back" size={24} color={COLORS.white} />
-              </TouchableOpacity>
-            ) : leftComponent ? (
-              leftComponent
-            ) : (
-              <View style={styles.logoContainer}>
-                <View style={styles.logoBackground}>
-                  <Ionicons name="bus" size={24} color={COLORS.primary[600]} />
-                </View>
-              </View>
-            )}
-          </View>
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary[600]} />
+      
+      <View style={styles.header}>
+        {/* Left Side - Back button or Logo */}
+        <View style={styles.leftSection}>
+          {showBack ? (
+            <TouchableOpacity onPress={onBackPress} style={styles.backButton}>
+              <Ionicons name="arrow-back" size={24} color={COLORS.white} />
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.logoSection}>
+              <Ionicons name="bus" size={28} color={COLORS.white} />
+            </View>
+          )}
+        </View>
 
-          {/* Center Section */}
-          <View style={styles.centerSection}>
-            <Text style={styles.title} numberOfLines={1}>
-              {title}
+        {/* Center - Title */}
+        <View style={styles.centerSection}>
+          <Text style={styles.title}>{title}</Text>
+          {user && (
+            <Text style={styles.subtitle}>
+              {user.nomConductor ? `${user.nomConductor} ${user.apeConductor}` : user.email}
             </Text>
-            {user && (
-              <Text style={styles.subtitle} numberOfLines={1}>
-                {user.name || user.email || 'Conductor'}
-              </Text>
-            )}
-          </View>
+          )}
+        </View>
 
-          {/* Right Section */}
-          <View style={styles.rightSection}>
-            {rightComponent || (
-              <View style={styles.rightActions}>
-                {showNotifications && (
-                  <TouchableOpacity 
-                    style={styles.notificationButton}
-                    onPress={onNotificationsPress}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="notifications-outline" size={24} color={COLORS.white} />
-                    {notificationCount > 0 && (
-                      <View style={styles.notificationBadge}>
-                        <Text style={styles.notificationBadgeText}>
-                          {notificationCount > 99 ? '99+' : notificationCount}
-                        </Text>
-                      </View>
-                    )}
-                  </TouchableOpacity>
+        {/* Right Side - Notifications and Profile */}
+        <View style={styles.rightSection}>
+          {showNotifications && (
+            <TouchableOpacity 
+              onPress={handleNotificationsPress} 
+              style={styles.iconButton}
+              activeOpacity={0.7}
+            >
+              <View>
+                <Ionicons name="notifications" size={24} color={COLORS.white} />
+                {notificationCount > 0 && (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>
+                      {notificationCount > 99 ? '99+' : notificationCount}
+                    </Text>
+                  </View>
                 )}
-                
-                <TouchableOpacity 
-                  style={styles.profileButton}
-                  onPress={onProfilePress}
-                  activeOpacity={0.9}
-                >
-                  {user?.fotoPerfil ? (
-                    <Image 
-                      source={{ uri: user.fotoPerfil }} 
-                      style={styles.profileImage}
-                    />
-                  ) : (
-                    <View style={styles.profileIcon}>
-                      <Ionicons name="person" size={20} color={COLORS.primary[600]} />
-                    </View>
-                  )}
-                  <View style={styles.onlineIndicator} />
-                </TouchableOpacity>
               </View>
-            )}
-          </View>
+            </TouchableOpacity>
+          )}
+          
+          {onProfilePress && (
+            <TouchableOpacity onPress={onProfilePress} style={styles.iconButton}>
+              <View style={styles.profileIcon}>
+                <Ionicons name="person" size={20} color={COLORS.primary[600]} />
+              </View>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  safeArea: {
-    zIndex: 1000,
-    elevation: 10,
-  },
   container: {
-    ...SHADOWS.large,
-    shadowColor: COLORS.secondary[900],
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 8,
+    backgroundColor: COLORS.primary[600],
+    paddingTop: Platform.OS === 'ios' ? 44 : StatusBar.currentHeight,
+    ...SHADOWS.medium,
   },
   header: {
     flexDirection: 'row',
@@ -119,130 +143,70 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
-    minHeight: 64,
+    minHeight: 56,
   },
   leftSection: {
-    flex: 1,
+    width: 50,
     alignItems: 'flex-start',
   },
+  backButton: {
+    padding: SPACING.xs,
+  },
+  logoSection: {
+    padding: SPACING.xs,
+  },
   centerSection: {
-    flex: 2,
+    flex: 1,
     alignItems: 'center',
-    paddingHorizontal: SPACING.sm,
+  },
+  title: {
+    fontSize: TYPOGRAPHY.sizes.lg,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: COLORS.white,
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: TYPOGRAPHY.sizes.sm,
+    color: COLORS.white,
+    opacity: 0.8,
+    textAlign: 'center',
+    marginTop: 2,
   },
   rightSection: {
-    flex: 1,
-    alignItems: 'flex-end',
-  },
-  backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: BORDER_RADIUS.lg,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    justifyContent: 'center',
+    flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    width: 50,
+    justifyContent: 'flex-end',
   },
-  logoContainer: {
-    alignItems: 'center',
+  iconButton: {
+    padding: SPACING.xs,
+    marginLeft: SPACING.xs,
   },
-  logoBackground: {
-    width: 44,
-    height: 44,
-    borderRadius: BORDER_RADIUS.lg,
+  profileIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: COLORS.white,
     justifyContent: 'center',
     alignItems: 'center',
-    ...SHADOWS.medium,
   },
-  title: {
-    color: COLORS.white,
-    fontSize: TYPOGRAPHY.sizes.xl,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    textAlign: 'center',
-    letterSpacing: 0.5,
-    textShadowColor: 'rgba(0,0,0,0.1)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  subtitle: {
-    color: 'rgba(255,255,255,0.9)',
-    fontSize: TYPOGRAPHY.sizes.sm,
-    textAlign: 'center',
-    marginTop: 2,
-    fontWeight: TYPOGRAPHY.weights.medium,
-  },
-  rightActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-  },
-  notificationButton: {
-    width: 44,
-    height: 44,
-    borderRadius: BORDER_RADIUS.lg,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-  },
-  notificationBadge: {
+  badge: {
     position: 'absolute',
-    top: -2,
-    right: -2,
+    top: -6,
+    right: -6,
     backgroundColor: COLORS.error[500],
-    borderRadius: BORDER_RADIUS.full,
+    borderRadius: 10,
     minWidth: 20,
     height: 20,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: COLORS.white,
+    borderColor: COLORS.primary[600],
   },
-  notificationBadgeText: {
+  badgeText: {
     color: COLORS.white,
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.sizes.xs,
     fontWeight: TYPOGRAPHY.weights.bold,
-    textAlign: 'center',
-  },
-  profileButton: {
-    width: 48,
-    height: 48,
-    borderRadius: BORDER_RADIUS.xl,
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-  },
-  profileImage: {
-    width: 44,
-    height: 44,
-    borderRadius: BORDER_RADIUS.lg,
-    borderWidth: 2.5,
-    borderColor: COLORS.white,
-  },
-  profileIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: BORDER_RADIUS.lg,
-    backgroundColor: COLORS.white,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2.5,
-    borderColor: COLORS.white,
-    ...SHADOWS.small,
-  },
-  onlineIndicator: {
-    position: 'absolute',
-    bottom: 2,
-    right: 2,
-    width: 14,
-    height: 14,
-    borderRadius: BORDER_RADIUS.full,
-    backgroundColor: COLORS.success[500],
-    borderWidth: 2,
-    borderColor: COLORS.white,
   },
 });
 

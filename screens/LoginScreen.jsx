@@ -43,7 +43,8 @@ const LoginScreen = () => {
     setIsLoading(false);
 
     if (result.success) {
-      navigation.replace('Map');
+      // Navegación corregida: ir a Home en lugar de Map
+      navigation.replace('Home');
     } else {
       Alert.alert('Error', result.message);
     }
@@ -79,7 +80,7 @@ const LoginScreen = () => {
               <Ionicons 
                 name="mail-outline" 
                 size={20} 
-                color={COLORS.secondary[500]} 
+                color={COLORS.secondary?.[500] || '#64748B'} 
                 style={styles.inputIcon}
               />
               <TextInput
@@ -110,7 +111,7 @@ const LoginScreen = () => {
               <Ionicons 
                 name="lock-closed-outline" 
                 size={20} 
-                color={COLORS.secondary[500]} 
+                color={COLORS.secondary?.[500] || '#64748B'} 
                 style={styles.inputIcon}
               />
               <TextInput
@@ -129,7 +130,7 @@ const LoginScreen = () => {
                 <Ionicons 
                   name={showPassword ? 'eye-off' : 'eye'} 
                   size={20} 
-                  color={COLORS.secondary[500]} 
+                  color={COLORS.secondary?.[500] || '#64748B'} 
                 />
               </TouchableOpacity>
             </View>

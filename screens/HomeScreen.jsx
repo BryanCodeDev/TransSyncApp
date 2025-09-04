@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   Dimensions,
-  Animated,
   StatusBar,
   RefreshControl,
   Alert
@@ -24,9 +23,6 @@ const HomeScreen = () => {
   const [currentStatIndex, setCurrentStatIndex] = useState(0);
   const navigation = useNavigation();
   const { user, logout } = useAuth();
-
-  const fadeAnim = new Animated.Value(0);
-  const slideAnim = new Animated.Value(50);
 
   const estadisticas = [
     { valor: "2,500+", texto: "Rutas activas", icono: "bus", color: COLORS.primary[600] },
@@ -96,19 +92,6 @@ const HomeScreen = () => {
   ];
 
   useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 1000,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 800,
-        useNativeDriver: true,
-      })
-    ]).start();
-
     // Auto-rotate statistics
     const interval = setInterval(() => {
       setCurrentStatIndex((prev) => (prev + 1) % estadisticas.length);
@@ -142,7 +125,7 @@ const HomeScreen = () => {
   };
 
   const StatCard = ({ stat, isActive }) => (
-    <Animated.View style={[
+    <View style={[
       styles.statCard,
       {
         opacity: isActive ? 1 : 0.7,
@@ -154,20 +137,11 @@ const HomeScreen = () => {
       </View>
       <Text style={styles.statValue}>{stat.valor}</Text>
       <Text style={styles.statLabel}>{stat.texto}</Text>
-    </Animated.View>
+    </View>
   );
 
-  const QuickAccessCard = ({ item, index }) => (
-    <Animated.View 
-      style={[
-        styles.quickAccessCard,
-        {
-          opacity: fadeAnim,
-          transform: [{ translateY: slideAnim }]
-        }
-      ]}
-      key={item.id}
-    >
+  const QuickAccessCard = ({ item }) => (
+    <View style={styles.quickAccessCard} key={item.id}>
       <TouchableOpacity
         style={styles.quickAccessContent}
         onPress={item.onPress}
@@ -182,7 +156,7 @@ const HomeScreen = () => {
         </View>
         <Ionicons name="chevron-forward" size={20} color={COLORS.secondary[400]} />
       </TouchableOpacity>
-    </Animated.View>
+    </View>
   );
 
   const FeatureCard = ({ feature, index }) => (
@@ -205,7 +179,7 @@ const HomeScreen = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary[600]} />
+      <StatusBar barStyle="light-content" translucent={false} />
       
       <Header
         title="TransSync"
@@ -224,15 +198,7 @@ const HomeScreen = () => {
         }
       >
         {/* Hero Section */}
-        <Animated.View 
-          style={[
-            styles.heroSection,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }]
-            }
-          ]}
-        >
+        <View style={styles.heroSection}>
           <View style={styles.welcomeCard}>
             <Text style={styles.welcomeText}>
               Bienvenido, {user?.nombre || user?.email || 'Conductor'}
@@ -250,7 +216,7 @@ const HomeScreen = () => {
               <Text style={styles.primaryButtonText}>Ir al Mapa</Text>
             </TouchableOpacity>
           </View>
-        </Animated.View>
+        </View>
 
         {/* Statistics Section */}
         <View style={styles.statsSection}>
@@ -276,7 +242,7 @@ const HomeScreen = () => {
           <Text style={styles.sectionTitle}>Accesos Rápidos</Text>
           <View style={styles.quickAccessGrid}>
             {accesosRapidos.map((item, index) => (
-              <QuickAccessCard key={item.id} item={item} index={index} />
+              <QuickAccessCard key={item.id} item={item} />
             ))}
           </View>
         </View>
