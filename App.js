@@ -2,6 +2,8 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { StatusBar } from 'expo-status-bar';
+
+// Context / Hooks
 import { AuthProvider } from './hooks/useAuth';
 
 // Screens
@@ -10,7 +12,7 @@ import RegisterScreen from './screens/RegisterScreen';
 import MapScreen from './screens/MapScreen';
 import ProfileScreen from './screens/ProfileScreen';
 
-// Constants
+// Utils
 import { COLORS } from './utils/constants';
 
 const Stack = createStackNavigator();
@@ -20,7 +22,7 @@ export default function App() {
     <AuthProvider>
       <NavigationContainer>
         <StatusBar style="auto" />
-        <Stack.Navigator 
+        <Stack.Navigator
           initialRouteName="Login"
           screenOptions={{
             headerStyle: {
@@ -32,30 +34,37 @@ export default function App() {
             },
           }}
         >
-          <Stack.Screen 
-            name="Login" 
+          {/* Pantalla de Login */}
+          <Stack.Screen
+            name="Login"
             component={LoginScreen}
             options={{ headerShown: false }}
           />
-          <Stack.Screen 
-            name="Register" 
+
+          {/* Registro */}
+          <Stack.Screen
+            name="Register"
             component={RegisterScreen}
             options={{ headerShown: false }}
           />
-          <Stack.Screen 
-            name="Map" 
+
+          {/* Mapa principal (con Menu.jsx como dock) */}
+          <Stack.Screen
+            name="Map"
             component={MapScreen}
-            options={{ 
+            options={{
               headerShown: false,
-              gestureEnabled: false // Evita que el usuario pueda deslizar hacia atrás
+              gestureEnabled: false, // evita retroceder con swipe
             }}
           />
-          <Stack.Screen 
-            name="Profile" 
+
+          {/* Perfil */}
+          <Stack.Screen
+            name="Profile"
             component={ProfileScreen}
-            options={{ 
+            options={{
               headerTitle: 'Mi Perfil',
-              headerBackTitle: 'Mapa'
+              headerBackTitle: 'Mapa',
             }}
           />
         </Stack.Navigator>
