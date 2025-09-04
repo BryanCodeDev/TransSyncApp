@@ -1,3 +1,4 @@
+// services/api.js - Actualizado con servicios de mapas
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -82,7 +83,7 @@ api.interceptors.response.use(
   }
 );
 
-// APIs específicas
+// APIs específicas existentes
 export const authAPI = {
   login: (email, password) => api.post('/auth/login', { email, password }),
   register: (userData) => api.post('/auth/register', userData),
@@ -109,20 +110,147 @@ export const vehicleAPI = {
   reportMaintenance: (data) => api.post('/vehiculos/reportar-mantenimiento', data),
 };
 
+export const routeAPI = {
+  getRutasSelect: () => api.get('/rutas/utils/select'),
+  getRutas: () => api.get('/rutas'),
+  crearRuta: (data) => api.post('/rutas', data),
+  actualizarRuta: (id, data) => api.put(`/rutas/${id}`, data),
+  eliminarRuta: (id) => api.delete(`/rutas/${id}`),
+};
+
+// ========================================
+// NUEVAS APIs DE MAPAS - OPENSTREETMAP
+// ========================================
+
 export const mapsAPI = {
-  getRoute: (origin, destination) => api.get('/maps/ruta', {
-    params: { 
-      origin: `${origin.lat},${origin.lng}`, 
-      destination: `${destination.lat},${destination.lng}` 
+  // 1. Buscar lugares
+  searchPlaces: (query, options = {}) => {
+    const { limit = 5, countrycodes = 'co' } = options;
+    return api.get(`/map/search/${encodeURIComponent(query)}`, {
+      params: { limit, countrycodes }
+    });
+  },
+
+  // 2. Geocoding inverso - obtener dirección de coordenadas
+  reverseGeocode: (lat, lon, zoom = 18) => {
+    return api.get(`/map/reverse/${lat}/${lon}`, {
+      params: { zoom }
+    });
+  },
+
+  // 3. Buscar lugares cercanos
+  findNearbyPlaces: (lat, lon, type, radius = 1000) => {
+    return api.get(`/map/nearby/${lat}/${lon}/${type}`, {
+      params: { radius }
+    });
+  },
+
+  // 4. Calcular ruta entre dos puntos
+  calculateRoute: (startLat, startLon, endLat, endLon, profile = 'driving-car') => {
+    return api.get(`/map/route/${startLat}/${startLon}/${endLat}/${endLon}`, {
+      params: { profile }
+    });
+  },
+
+  // 5. Obtener detalles de un lugar específico
+  getPlaceDetails: (placeId) => {
+    return api.get(`/map/place/${placeId}`);
+  },
+
+  // 6. Obtener tipos de lugares disponibles
+  getMapTypes: () => {
+    return api.get('/map/types');
+  },
+
+  // 7. Health check del servicio de mapas
+  getMapHealth: () => {
+    return api.get('/map/health');
+  },
+
+  // MÉTODOS DE CONVENIENCIA PARA LA APP MÓVIL
+
+  // Buscar direcciones con autocompletado
+  searchAddresses: async (query, options = {}) => {
+    if (!query || query.length < 3) {
+      return { data: { success: true, data: [], count: 0 } };
     }
-  }),
-  searchLocation: (query) => api.get('/maps/buscar', { params: { q: query } }),
+    return await mapsAPI.searchPlaces(query, options);
+  },
+
+  // Obtener lugares populares cerca de una ubicación
+  getPopularNearby: async (lat, lon) => {
+    const promises = [
+      mapsAPI.findNearbyPlaces(lat, lon, 'restaurant', 2000),
+      mapsAPI.findNearbyPlaces(lat, lon, 'bank', 1000),
+      mapsAPI.findNearbyPlaces(lat, lon, 'hospital', 5000),
+      mapsAPI.findNearbyPlaces(lat, lon, 'pharmacy', 1500),
+      mapsAPI.findNearbyPlaces(lat, lon, 'bus_stop', 500)
+    ];
+
+    try {
+      const results = await Promise.allSettled(promises);
+      const categories = ['Restaurantes', 'Bancos', 'Hospitales', 'Farmacias', 'Paradas'];
+      const places = [];
+
+      results.forEach((result, index) => {
+        if (result.status === 'fulfilled' && result.value?.data?.success) {
+          places.push({
+            category: categories[index],
+            places: result.value.data.data.slice(0, 3)
+          });
+        }
+      });
+
+      return { data: { success: true, data: places } };
+    } catch (error) {
+      return { data: { success: false, data: [], error: error.message } };
+    }
+  },
+
+  // Calcular múltiples rutas (por si necesitas comparar opciones)
+  calculateMultipleRoutes: async (start, end, profiles = ['driving-car', 'foot-walking']) => {
+    const promises = profiles.map(profile => 
+      mapsAPI.calculateRoute(start.lat, start.lon, end.lat, end.lon, profile)
+    );
+
+    try {
+      const results = await Promise.allSettled(promises);
+      const routes = [];
+
+      results.forEach((result, index) => {
+        if (result.status === 'fulfilled' && result.value?.data?.success) {
+          routes.push({
+            profile: profiles[index],
+            data: result.value.data.data
+          });
+        }
+      });
+
+      return { data: { success: true, data: routes } };
+    } catch (error) {
+      return { data: { success: false, data: [], error: error.message } };
+    }
+  }
 };
 
 // Función auxiliar para testear conectividad
 export const testConnection = async () => {
   try {
     const response = await api.get('/health');
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { 
+      success: false, 
+      error: error.message,
+      details: error.response?.data 
+    };
+  }
+};
+
+// Función para testear servicios de mapas específicamente
+export const testMapServices = async () => {
+  try {
+    const response = await mapsAPI.getMapHealth();
     return { success: true, data: response.data };
   } catch (error) {
     return { 

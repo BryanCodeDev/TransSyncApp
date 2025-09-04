@@ -1,327 +1,480 @@
-// components/EnhancedMapView.jsx
-import React, { useState, useEffect, useRef } from 'react';
+// components/EnhancedMapView.jsx - Versión mejorada con OpenStreetMap
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
-  TouchableOpacity,
   Alert,
-  Modal,
-  Dimensions,
-  ActivityIndicator
+  TouchableOpacity,
+  Text,
+  ActivityIndicator,
+  Dimensions
 } from 'react-native';
-import MapView, { Marker, Polyline } from 'react-native-maps';
+import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from 'react-native-maps';
+import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import { COLORS, SPACING, TYPOGRAPHY, BORDER_RADIUS, SHADOWS } from '../utils/constants';
-import mapService from '../services/mapService';
-// Comentado temporalmente hasta que se cree el componente
-// import PlaceSearchComponent from './PlaceSearchComponent';
+import { mapsAPI } from '../services/api';
+import { COLORS } from '../utils/constants';
 
 const { width, height } = Dimensions.get('window');
 
 const EnhancedMapView = ({ 
   initialLocation = null,
-  showSearch = true,
   onLocationChange = null,
-  routePoints = [],
   markers = [],
-  enableRouting = false
+  routes = [],
+  showUserLocation = true,
+  showSearch = false,
+  enableRouting = false,
+  onMapPress = null,
+  style = {},
+  currentLocation = null,
+  onPlaceSelect = null
 }) => {
-  const [currentLocation, setCurrentLocation] = useState(initialLocation);
-  const [selectedPlace, setSelectedPlace] = useState(null);
-  const [showSearchModal, setShowSearchModal] = useState(false);
-  const [route, setRoute] = useState(null);
-  const [isLoadingRoute, setIsLoadingRoute] = useState(false);
+  // Estados
+  const [currentUserLocation, setCurrentUserLocation] = useState(initialLocation);
+  const [calculatedRoutes, setCalculatedRoutes] = useState([]);
   const [nearbyPlaces, setNearbyPlaces] = useState([]);
-  const [showNearbyPlaces, setShowNearbyPlaces] = useState(false);
-  const [userLocation, setUserLocation] = useState(null);
-  
-  const mapRef = useRef(null);
+  const [selectedPlace, setSelectedPlace] = useState(null);
+  const [isLoadingRoute, setIsLoadingRoute] = useState(false);
+  const [isLoadingPlaces, setIsLoadingPlaces] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
+  const [region, setRegion] = useState({
+    latitude: currentLocation?.latitude || initialLocation?.latitude || 4.6097,
+    longitude: currentLocation?.longitude || initialLocation?.longitude || -74.0817,
+    latitudeDelta: 0.01,
+    longitudeDelta: 0.01,
+  });
 
+  const mapRef = useRef(null);
+  const locationWatchRef = useRef(null);
+
+  // Configuración de OpenStreetMap
+  const openStreetMapStyle = [
+    {
+      "featureType": "all",
+      "stylers": [
+        { "saturation": -100 },
+        { "gamma": 0.5 }
+      ]
+    }
+  ];
+
+  // Efecto para solicitar permisos y obtener ubicación
   useEffect(() => {
-    getCurrentLocation();
+    if (!initialLocation && !currentLocation) {
+      requestLocationPermission();
+    }
+    
+    return () => {
+      if (locationWatchRef.current) {
+        locationWatchRef.current.remove();
+      }
+    };
   }, []);
 
+  // Efecto para actualizar región cuando cambie la ubicación
   useEffect(() => {
-    if (currentLocation && onLocationChange) {
-      onLocationChange(currentLocation);
+    if (currentLocation) {
+      setCurrentUserLocation(currentLocation);
+      setRegion({
+        latitude: currentLocation.latitude,
+        longitude: currentLocation.longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      });
     }
   }, [currentLocation]);
 
-  const getCurrentLocation = async () => {
+  // Solicitar permisos de ubicación
+  const requestLocationPermission = async () => {
     try {
-      let { status } = await Location.requestForegroundPermissionsAsync();
+      const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert(
           'Permiso requerido',
           'La aplicación necesita acceso a la ubicación para funcionar correctamente.',
-          [
-            { text: 'Configurar', onPress: () => Location.requestForegroundPermissionsAsync() },
-            { text: 'Cancelar', style: 'cancel' }
-          ]
+          [{ text: 'OK' }]
         );
         return;
       }
 
+      getCurrentLocation();
+      startLocationTracking();
+    } catch (error) {
+      console.error('Error solicitando permisos:', error);
+    }
+  };
+
+  // Obtener ubicación actual
+  const getCurrentLocation = async () => {
+    try {
       const location = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.High,
+        timeout: 15000,
+        maximumAge: 60000,
       });
 
       const newLocation = {
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
         lat: location.coords.latitude,
         lon: location.coords.longitude,
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude
+        accuracy: location.coords.accuracy,
       };
 
-      setUserLocation(newLocation);
+      setCurrentUserLocation(newLocation);
       
-      if (!currentLocation) {
-        setCurrentLocation(newLocation);
+      if (onLocationChange) {
+        onLocationChange(newLocation);
       }
 
-      // Centrar el mapa en la ubicación actual
-      if (mapRef.current) {
+      // Cargar lugares cercanos si está habilitado
+      if (enableRouting) {
+        loadNearbyPlaces(newLocation.latitude, newLocation.longitude);
+      }
+
+      // Centrar mapa en la nueva ubicación
+      if (mapRef.current && mapReady) {
         mapRef.current.animateToRegion({
-          latitude: location.coords.latitude,
-          longitude: location.coords.longitude,
+          latitude: newLocation.latitude,
+          longitude: newLocation.longitude,
           latitudeDelta: 0.01,
           longitudeDelta: 0.01,
         }, 1000);
       }
+
     } catch (error) {
       console.error('Error obteniendo ubicación:', error);
-      Alert.alert('Error', 'No se pudo obtener la ubicación actual');
+      Alert.alert(
+        'Error de ubicación',
+        'No se pudo obtener la ubicación actual. Verifica que el GPS esté activado.',
+        [{ text: 'OK' }]
+      );
     }
   };
 
-  const handlePlaceSelected = async (place) => {
-    setSelectedPlace(place);
-    setShowSearchModal(false);
+  // Seguimiento de ubicación en tiempo real
+  const startLocationTracking = async () => {
+    try {
+      locationWatchRef.current = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.High,
+          timeInterval: 10000, // 10 segundos
+          distanceInterval: 10, // 10 metros
+        },
+        (location) => {
+          const newLocation = {
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+            lat: location.coords.latitude,
+            lon: location.coords.longitude,
+            accuracy: location.coords.accuracy,
+          };
 
-    // Animar hacia el lugar seleccionado
-    if (mapRef.current && place.lat && place.lon) {
-      mapRef.current.animateToRegion({
-        latitude: place.lat,
-        longitude: place.lon,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
-      }, 1000);
-    }
-
-    // Calcular ruta si está habilitado y tenemos ubicación actual
-    if (enableRouting && userLocation) {
-      await calculateRoute(userLocation, place);
+          setCurrentUserLocation(newLocation);
+          
+          if (onLocationChange) {
+            onLocationChange(newLocation);
+          }
+        }
+      );
+    } catch (error) {
+      console.error('Error iniciando seguimiento:', error);
     }
   };
 
-  const calculateRoute = async (origin, destination) => {
-    if (!origin || !destination) return;
+  // Cargar lugares cercanos usando OpenStreetMap
+  const loadNearbyPlaces = async (lat, lon) => {
+    if (isLoadingPlaces) return;
+
+    setIsLoadingPlaces(true);
+    try {
+      const response = await mapsAPI.getPopularNearby(lat, lon);
+      
+      if (response.data.success) {
+        const allPlaces = [];
+        response.data.data.forEach(category => {
+          category.places.forEach(place => {
+            allPlaces.push({
+              ...place,
+              category: category.category,
+              id: `nearby-${place.id}`,
+            });
+          });
+        });
+        setNearbyPlaces(allPlaces);
+      }
+    } catch (error) {
+      console.error('Error cargando lugares cercanos:', error);
+    } finally {
+      setIsLoadingPlaces(false);
+    }
+  };
+
+  // Calcular ruta usando OpenStreetMap
+  const calculateRoute = async (destination) => {
+    if (!currentUserLocation || isLoadingRoute) return;
 
     setIsLoadingRoute(true);
     try {
-      const response = await mapService.calculateRoute(
-        origin.lat,
-        origin.lon,
-        destination.lat,
-        destination.lon
+      const response = await mapsAPI.calculateRoute(
+        currentUserLocation.latitude,
+        currentUserLocation.longitude,
+        destination.latitude || destination.lat,
+        destination.longitude || destination.lon,
+        'driving-car'
       );
 
-      if (response.success && response.data) {
-        setRoute({
-          coordinates: response.data.geometry.coordinates.map(coord => ({
-            latitude: coord[1],
-            longitude: coord[0]
-          })),
-          distance: response.data.distance,
-          duration: response.data.duration,
-          instructions: response.data.instructions
-        });
+      if (response.data.success) {
+        const routeData = response.data.data;
+        
+        // Convertir coordenadas de la geometría a formato react-native-maps
+        const coordinates = routeData.geometry.coordinates.map(coord => ({
+          latitude: coord[1],
+          longitude: coord[0],
+        }));
+
+        const newRoute = {
+          id: `route-${Date.now()}`,
+          coordinates,
+          color: COLORS.primary[500],
+          width: 4,
+          distance: routeData.distance,
+          duration: routeData.duration,
+          instructions: routeData.instructions,
+        };
+
+        setCalculatedRoutes([newRoute]);
+
+        // Ajustar vista del mapa para mostrar toda la ruta
+        if (mapRef.current && coordinates.length > 0) {
+          mapRef.current.fitToCoordinates(coordinates, {
+            edgePadding: {
+              top: 50,
+              right: 50,
+              bottom: 50,
+              left: 50,
+            },
+            animated: true,
+          });
+        }
+
+        return newRoute;
       }
     } catch (error) {
       console.error('Error calculando ruta:', error);
-      Alert.alert('Error', 'No se pudo calcular la ruta');
+      Alert.alert(
+        'Error de ruta',
+        'No se pudo calcular la ruta. Intenta de nuevo.',
+        [{ text: 'OK' }]
+      );
     } finally {
       setIsLoadingRoute(false);
     }
   };
 
-  const loadNearbyPlaces = async () => {
-    if (!currentLocation) return;
+  // Manejar presión en el mapa
+  const handleMapPress = async (event) => {
+    const coordinate = event.nativeEvent.coordinate;
+    
+    if (onMapPress) {
+      onMapPress(coordinate);
+    }
 
-    try {
-      setShowNearbyPlaces(true);
-      const response = await mapService.findNearbyPlaces(
-        currentLocation.lat,
-        currentLocation.lon,
-        'restaurant',
-        2000
-      );
+    // Si está habilitado el routing, obtener información del lugar
+    if (enableRouting) {
+      try {
+        const response = await mapsAPI.reverseGeocode(
+          coordinate.latitude,
+          coordinate.longitude
+        );
 
-      if (response.success) {
-        setNearbyPlaces(response.data);
+        if (response.data.success) {
+          const place = response.data.data;
+          setSelectedPlace({
+            ...place,
+            latitude: coordinate.latitude,
+            longitude: coordinate.longitude,
+          });
+
+          if (onPlaceSelect) {
+            onPlaceSelect(place);
+          }
+        }
+      } catch (error) {
+        console.error('Error obteniendo información del lugar:', error);
       }
-    } catch (error) {
-      console.error('Error cargando lugares cercanos:', error);
-      Alert.alert('Error', 'No se pudieron cargar los lugares cercanos');
     }
   };
 
-  const clearRoute = () => {
-    setRoute(null);
-    setSelectedPlace(null);
-  };
+  // Manejar presión en marcador
+  const handleMarkerPress = useCallback((marker) => {
+    if (enableRouting && marker.latitude && marker.longitude) {
+      Alert.alert(
+        'Calcular Ruta',
+        `¿Deseas calcular la ruta hasta ${marker.title || 'este lugar'}?`,
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { 
+            text: 'Calcular', 
+            onPress: () => calculateRoute(marker)
+          }
+        ]
+      );
+    }
+  }, [enableRouting, calculateRoute]);
 
-  const centerOnUser = () => {
-    if (userLocation && mapRef.current) {
+  // Centrar mapa en ubicación actual
+  const centerOnCurrentLocation = useCallback(() => {
+    if (currentUserLocation && mapRef.current) {
       mapRef.current.animateToRegion({
-        latitude: userLocation.latitude,
-        longitude: userLocation.longitude,
+        latitude: currentUserLocation.latitude,
+        longitude: currentUserLocation.longitude,
         latitudeDelta: 0.01,
         longitudeDelta: 0.01,
       }, 1000);
+    } else {
+      getCurrentLocation();
     }
-  };
+  }, [currentUserLocation]);
 
-  // Función simple de búsqueda temporal hasta que se implemente PlaceSearchComponent
-  const openSimpleSearch = () => {
-    Alert.alert(
-      'Búsqueda de lugares',
-      'La función de búsqueda avanzada estará disponible pronto',
-      [{ text: 'OK' }]
-    );
-  };
+  // Limpiar rutas calculadas
+  const clearRoutes = useCallback(() => {
+    setCalculatedRoutes([]);
+    setSelectedPlace(null);
+  }, []);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, style]}>
       <MapView
         ref={mapRef}
         style={styles.map}
-        initialRegion={{
-          latitude: currentLocation?.latitude || 4.6097,
-          longitude: currentLocation?.longitude || -74.0817,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
-        }}
-        showsUserLocation={true}
-        followsUserLocation={false}
+        provider={PROVIDER_DEFAULT}
+        initialRegion={region}
+        showsUserLocation={showUserLocation}
         showsMyLocationButton={false}
-        showsCompass={false}
-        onPress={() => setSelectedPlace(null)}
+        showsCompass={true}
+        showsScale={true}
+        showsBuildings={true}
+        showsTraffic={false}
+        onPress={handleMapPress}
+        onMapReady={() => setMapReady(true)}
+        onRegionChangeComplete={setRegion}
       >
-        {/* Marcador de lugar seleccionado */}
-        {selectedPlace && (
-          <Marker
-            coordinate={{
-              latitude: selectedPlace.lat,
-              longitude: selectedPlace.lon
-            }}
-            title={selectedPlace.name}
-            description={selectedPlace.address ? 
-              `${selectedPlace.address.road || ''} ${selectedPlace.address.city || ''}`.trim() 
-              : 'Ubicación seleccionada'
-            }
-            pinColor={COLORS.primary[600]}
-          />
-        )}
-
-        {/* Marcadores adicionales */}
+        {/* Marcadores personalizados */}
         {markers.map((marker, index) => (
           <Marker
-            key={index}
+            key={marker.id || `marker-${index}`}
             coordinate={{
-              latitude: marker.lat,
-              longitude: marker.lon
+              latitude: marker.lat || marker.latitude,
+              longitude: marker.lon || marker.longitude
             }}
             title={marker.title}
             description={marker.description}
-            pinColor={marker.color || COLORS.secondary[600]}
+            pinColor={marker.color || COLORS.primary[600]}
+            onPress={() => handleMarkerPress(marker)}
           />
         ))}
 
         {/* Marcadores de lugares cercanos */}
-        {showNearbyPlaces && nearbyPlaces.map((place, index) => (
+        {nearbyPlaces.map((place, index) => (
           <Marker
-            key={`nearby-${index}`}
+            key={`nearby-${place.id || index}`}
             coordinate={{
               latitude: place.lat,
               longitude: place.lon
             }}
             title={place.name}
-            description={place.type}
+            description={`${place.category} - ${place.distance ? `${Math.round(place.distance)}m` : ''}`}
+            pinColor={COLORS.secondary[500]}
+            onPress={() => handleMarkerPress(place)}
           >
-            <View style={styles.nearbyMarker}>
-              <Text style={styles.nearbyMarkerText}>🍽️</Text>
+            <View style={styles.customMarker}>
+              <Ionicons 
+                name="location" 
+                size={20} 
+                color={COLORS.secondary[600]} 
+              />
             </View>
           </Marker>
         ))}
 
-        {/* Ruta calculada */}
-        {route && (
-          <Polyline
-            coordinates={route.coordinates}
-            strokeColor={COLORS.primary[500]}
-            strokeWidth={4}
-            lineDashPattern={[5, 5]}
+        {/* Marcador de lugar seleccionado */}
+        {selectedPlace && (
+          <Marker
+            coordinate={{
+              latitude: selectedPlace.latitude,
+              longitude: selectedPlace.longitude
+            }}
+            title={selectedPlace.name}
+            description="Lugar seleccionado"
+            pinColor={COLORS.accent[500]}
           />
         )}
+
+        {/* Rutas existentes */}
+        {routes.map((route, index) => (
+          <Polyline
+            key={route.id || `route-${index}`}
+            coordinates={route.coordinates}
+            strokeColor={route.color || COLORS.primary[500]}
+            strokeWidth={route.width || 3}
+            lineDashPattern={route.dashed ? [5, 5] : undefined}
+          />
+        ))}
+
+        {/* Rutas calculadas */}
+        {calculatedRoutes.map((route, index) => (
+          <Polyline
+            key={route.id || `calc-route-${index}`}
+            coordinates={route.coordinates}
+            strokeColor={route.color}
+            strokeWidth={route.width}
+          />
+        ))}
       </MapView>
 
-      {/* Botones de control */}
+      {/* Controles flotantes */}
       <View style={styles.controls}>
-        {showSearch && (
-          <TouchableOpacity
-            style={styles.searchButton}
-            onPress={openSimpleSearch}
+        {/* Botón para centrar ubicación */}
+        <TouchableOpacity 
+          style={styles.controlButton}
+          onPress={centerOnCurrentLocation}
+          disabled={!mapReady}
+        >
+          <Ionicons name="locate" size={24} color={COLORS.primary[600]} />
+        </TouchableOpacity>
+
+        {/* Botón para limpiar rutas */}
+        {enableRouting && calculatedRoutes.length > 0 && (
+          <TouchableOpacity 
+            style={styles.controlButton}
+            onPress={clearRoutes}
           >
-            <Text style={styles.searchButtonText}>🔍 Buscar lugar</Text>
+            <Ionicons name="close" size={24} color={COLORS.error[500]} />
           </TouchableOpacity>
         )}
 
-        <TouchableOpacity
-          style={styles.controlButton}
-          onPress={centerOnUser}
-        >
-          <Text style={styles.controlButtonText}>📍</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.controlButton}
-          onPress={loadNearbyPlaces}
-        >
-          <Text style={styles.controlButtonText}>🍽️</Text>
-        </TouchableOpacity>
-
-        {route && (
-          <TouchableOpacity
-            style={[styles.controlButton, { backgroundColor: COLORS.error[500] }]}
-            onPress={clearRoute}
-          >
-            <Text style={styles.controlButtonText}>✖️</Text>
-          </TouchableOpacity>
+        {/* Indicador de carga */}
+        {(isLoadingRoute || isLoadingPlaces) && (
+          <View style={styles.loadingIndicator}>
+            <ActivityIndicator size="small" color={COLORS.primary[600]} />
+            <Text style={styles.loadingText}>
+              {isLoadingRoute ? 'Calculando ruta...' : 'Cargando lugares...'}
+            </Text>
+          </View>
         )}
       </View>
 
-      {/* Información de ruta */}
-      {route && (
+      {/* Información de ruta calculada */}
+      {calculatedRoutes.length > 0 && (
         <View style={styles.routeInfo}>
-          <Text style={styles.routeInfoTitle}>Ruta calculada</Text>
-          <Text style={styles.routeInfoText}>
-            Distancia: {mapService.formatDistance(route.distance)}
+          <Text style={styles.routeText}>
+            Distancia: {Math.round(calculatedRoutes[0].distance / 1000 * 10) / 10} km
           </Text>
-          {route.duration && (
-            <Text style={styles.routeInfoText}>
-              Tiempo estimado: {mapService.formatDuration(route.duration)}
-            </Text>
-          )}
-        </View>
-      )}
-
-      {/* Indicador de carga de ruta */}
-      {isLoadingRoute && (
-        <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color={COLORS.primary[500]} />
-          <Text style={styles.loadingText}>Calculando ruta...</Text>
+          <Text style={styles.routeText}>
+            Tiempo: {Math.round(calculatedRoutes[0].duration / 60)} min
+          </Text>
         </View>
       )}
     </View>
@@ -337,81 +490,77 @@ const styles = StyleSheet.create({
   },
   controls: {
     position: 'absolute',
-    bottom: SPACING.xl,
-    right: SPACING.md,
-    gap: SPACING.sm,
-  },
-  searchButton: {
-    backgroundColor: COLORS.primary[500],
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-    borderRadius: BORDER_RADIUS.lg,
-    ...SHADOWS.medium,
-  },
-  searchButtonText: {
-    color: COLORS.white,
-    fontSize: TYPOGRAPHY.sizes.base,
-    fontWeight: TYPOGRAPHY.weights.medium,
+    top: 50,
+    right: 15,
+    alignItems: 'center',
   },
   controlButton: {
     backgroundColor: COLORS.white,
+    borderRadius: 25,
     width: 50,
     height: 50,
-    borderRadius: 25,
     justifyContent: 'center',
     alignItems: 'center',
-    ...SHADOWS.medium,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
-  controlButtonText: {
-    fontSize: 20,
-  },
-  nearbyMarker: {
+  customMarker: {
     backgroundColor: COLORS.white,
     borderRadius: 15,
-    width: 30,
-    height: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
+    padding: 5,
     borderWidth: 2,
-    borderColor: COLORS.primary[500],
+    borderColor: COLORS.secondary[600],
   },
-  nearbyMarkerText: {
-    fontSize: 16,
+  loadingIndicator: {
+    backgroundColor: COLORS.white,
+    borderRadius: 10,
+    padding: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  loadingText: {
+    marginLeft: 8,
+    fontSize: 12,
+    color: COLORS.secondary[600],
   },
   routeInfo: {
     position: 'absolute',
-    top: SPACING.xl,
-    left: SPACING.md,
-    right: SPACING.md,
+    bottom: 20,
+    left: 15,
+    right: 15,
     backgroundColor: COLORS.white,
-    padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.lg,
-    ...SHADOWS.medium,
+    borderRadius: 10,
+    padding: 15,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
-  routeInfoTitle: {
-    fontSize: TYPOGRAPHY.sizes.base,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-    color: COLORS.secondary[900],
-    marginBottom: SPACING.xs,
-  },
-  routeInfoText: {
-    fontSize: TYPOGRAPHY.sizes.sm,
+  routeText: {
+    fontSize: 14,
+    fontWeight: 'bold',
     color: COLORS.secondary[700],
-  },
-  loadingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    color: COLORS.white,
-    fontSize: TYPOGRAPHY.sizes.base,
-    marginTop: SPACING.md,
   },
 });
 

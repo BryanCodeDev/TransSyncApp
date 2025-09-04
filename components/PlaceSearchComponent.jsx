@@ -1,233 +1,296 @@
-// components/PlaceSearchComponent.jsx
+// components/PlaceSearchComponent.jsx - Componente de búsqueda de lugares
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
-  Text,
   TextInput,
   FlatList,
   TouchableOpacity,
+  Text,
   StyleSheet,
   ActivityIndicator,
+  Keyboard,
   Alert
 } from 'react-native';
-import { COLORS, SPACING, TYPOGRAPHY, BORDER_RADIUS, SHADOWS } from '../utils/constants';
-import mapService from '../services/mapService';
+import { Ionicons } from '@expo/vector-icons';
+import { mapsAPI } from '../services/api';
+import { COLORS } from '../utils/constants';
 
 const PlaceSearchComponent = ({ 
-  onPlaceSelected, 
-  placeholder = "Buscar lugar...", 
-  currentLocation = null,
-  showNearbyPlaces = true 
+  onPlaceSelect,
+  onClose,
+  placeholder = "Buscar lugar...",
+  initialQuery = "",
+  showCurrentLocation = true,
+  maxResults = 10,
+  countryCode = 'co',
+  style = {}
 }) => {
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(initialQuery);
   const [results, setResults] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
-  const [nearbyPlaces, setNearbyPlaces] = useState([]);
-  const searchTimeout = useRef(null);
+  const [recentSearches, setRecentSearches] = useState([]);
+  
+  const searchTimeoutRef = useRef(null);
+  const inputRef = useRef(null);
 
   useEffect(() => {
-    if (currentLocation && showNearbyPlaces) {
-      loadNearbyPlaces();
-    }
-  }, [currentLocation]);
-
-  const loadNearbyPlaces = async () => {
-    if (!currentLocation) return;
-    
-    try {
-      const response = await mapService.getPopularPlaces(
-        currentLocation.lat,
-        currentLocation.lon
-      );
-      
-      if (response.success) {
-        setNearbyPlaces(response.data);
+    // Limpiar timeout al desmontar
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
       }
-    } catch (error) {
-      console.error('Error cargando lugares cercanos:', error);
+    };
+  }, []);
+
+  // Búsqueda con debounce
+  useEffect(() => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
     }
-  };
+
+    if (query.length >= 3) {
+      searchTimeoutRef.current = setTimeout(() => {
+        searchPlaces(query);
+      }, 500);
+    } else {
+      setResults([]);
+      setShowResults(false);
+    }
+  }, [query]);
 
   const searchPlaces = async (searchQuery) => {
-    if (searchQuery.length < 3) {
-      setResults([]);
-      return;
-    }
+    if (isLoading) return;
 
-    setLoading(true);
-    
+    setIsLoading(true);
     try {
-      const response = await mapService.searchPlaces(searchQuery, {
-        limit: 8,
-        countrycodes: 'co'
+      const response = await mapsAPI.searchPlaces(searchQuery, {
+        limit: maxResults,
+        countrycodes: countryCode
       });
 
-      if (response.success) {
-        setResults(response.data);
+      if (response.data.success) {
+        const places = response.data.data.map(place => ({
+          id: place.id,
+          name: place.name,
+          address: formatAddress(place.address),
+          latitude: place.lat,
+          longitude: place.lon,
+          type: place.type,
+          category: place.category,
+          importance: place.importance
+        }));
+
+        setResults(places);
+        setShowResults(true);
       } else {
         setResults([]);
-        Alert.alert('Error', 'No se pudieron cargar los resultados');
+        setShowResults(false);
       }
     } catch (error) {
       console.error('Error buscando lugares:', error);
-      setResults([]);
-      Alert.alert('Error', 'Error de conexión al buscar lugares');
+      Alert.alert(
+        'Error de búsqueda',
+        'No se pudieron cargar los resultados. Verifica tu conexión.',
+        [{ text: 'OK' }]
+      );
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  const handleQueryChange = (text) => {
-    setQuery(text);
-    setShowResults(text.length > 0);
-
-    // Cancelar búsqueda anterior
-    if (searchTimeout.current) {
-      clearTimeout(searchTimeout.current);
-    }
-
-    // Buscar con delay para evitar muchas requests
-    searchTimeout.current = setTimeout(() => {
-      searchPlaces(text);
-    }, 500);
+  const formatAddress = (address) => {
+    if (!address) return '';
+    
+    const parts = [];
+    if (address.road) parts.push(address.road);
+    if (address.house_number) parts.push(`#${address.house_number}`);
+    if (address.neighbourhood) parts.push(address.neighbourhood);
+    if (address.city) parts.push(address.city);
+    
+    return parts.join(', ');
   };
 
   const handlePlaceSelect = (place) => {
     setQuery(place.name);
     setShowResults(false);
-    setResults([]);
+    Keyboard.dismiss();
     
-    if (onPlaceSelected) {
-      onPlaceSelected(place);
+    // Agregar a búsquedas recientes
+    const updatedRecent = [place, ...recentSearches.filter(r => r.id !== place.id)].slice(0, 5);
+    setRecentSearches(updatedRecent);
+    
+    if (onPlaceSelect) {
+      onPlaceSelect(place);
     }
   };
 
-  const formatAddress = (address) => {
-    const parts = [];
-    if (address.road) parts.push(address.road);
-    if (address.city) parts.push(address.city);
-    if (address.state) parts.push(address.state);
-    return parts.join(', ') || 'Dirección no disponible';
+  const handleCurrentLocation = () => {
+    if (onPlaceSelect) {
+      onPlaceSelect({ 
+        type: 'current_location',
+        name: 'Mi ubicación actual',
+        address: 'Ubicación actual'
+      });
+    }
+    setShowResults(false);
+    Keyboard.dismiss();
+  };
+
+  const clearSearch = () => {
+    setQuery('');
+    setResults([]);
+    setShowResults(false);
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
   };
 
   const renderPlaceItem = ({ item }) => (
     <TouchableOpacity
       style={styles.resultItem}
       onPress={() => handlePlaceSelect(item)}
-      activeOpacity={0.7}
     >
-      <View style={styles.resultContent}>
-        <Text style={styles.placeName} numberOfLines={1}>
-          {item.name}
-        </Text>
-        <Text style={styles.placeAddress} numberOfLines={2}>
-          {formatAddress(item.address)}
-        </Text>
-        {item.type && (
-          <View style={styles.typeContainer}>
-            <Text style={styles.placeType}>{item.type}</Text>
-          </View>
-        )}
-      </View>
-      <View style={styles.distanceContainer}>
-        {currentLocation && (
-          <Text style={styles.distanceText}>
-            {mapService.formatDistance(
-              mapService.calculateDistance(
-                currentLocation.lat,
-                currentLocation.lon,
-                item.lat,
-                item.lon
-              )
-            )}
+      <View style={styles.placeInfo}>
+        <Ionicons 
+          name={getPlaceIcon(item.type)} 
+          size={20} 
+          color={COLORS.secondary[600]} 
+          style={styles.placeIcon}
+        />
+        <View style={styles.placeText}>
+          <Text style={styles.placeName} numberOfLines={1}>
+            {item.name}
           </Text>
-        )}
+          <Text style={styles.placeAddress} numberOfLines={1}>
+            {item.address}
+          </Text>
+        </View>
       </View>
+      <Ionicons 
+        name="chevron-forward" 
+        size={16} 
+        color={COLORS.secondary[400]} 
+      />
     </TouchableOpacity>
   );
 
-  const renderNearbyCategory = ({ item }) => (
-    <View style={styles.nearbyCategory}>
-      <Text style={styles.categoryTitle}>{item.category}</Text>
-      <View style={styles.categoryPlaces}>
-        {item.places.map((place, index) => (
-          <TouchableOpacity
-            key={index}
-            style={styles.nearbyPlace}
-            onPress={() => handlePlaceSelect(place)}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.nearbyPlaceName} numberOfLines={1}>
-              {place.name}
-            </Text>
-            <Text style={styles.nearbyPlaceDistance}>
-              {currentLocation && mapService.formatDistance(
-                mapService.calculateDistance(
-                  currentLocation.lat,
-                  currentLocation.lon,
-                  place.lat,
-                  place.lon
-                )
-              )}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-    </View>
-  );
+  const getPlaceIcon = (type) => {
+    const iconMap = {
+      'restaurant': 'restaurant',
+      'bank': 'card',
+      'hospital': 'medical',
+      'school': 'school',
+      'pharmacy': 'medical',
+      'fuel': 'car',
+      'bus_stop': 'bus',
+      'parking': 'car-sport',
+      'default': 'location'
+    };
+    
+    return iconMap[type] || iconMap.default;
+  };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.searchContainer}>
+    <View style={[styles.container, style]}>
+      {/* Barra de búsqueda */}
+      <View style={styles.searchBar}>
+        <Ionicons 
+          name="search" 
+          size={20} 
+          color={COLORS.secondary[500]} 
+          style={styles.searchIcon}
+        />
         <TextInput
+          ref={inputRef}
           style={styles.searchInput}
           placeholder={placeholder}
-          placeholderTextColor={COLORS.secondary[400]}
           value={query}
-          onChangeText={handleQueryChange}
-          onFocus={() => setShowResults(query.length > 0)}
+          onChangeText={setQuery}
+          onFocus={() => setShowResults(results.length > 0)}
+          autoCorrect={false}
+          clearButtonMode="never"
           returnKeyType="search"
         />
-        {loading && (
-          <ActivityIndicator
-            size="small"
-            color={COLORS.primary[500]}
-            style={styles.loadingIndicator}
-          />
+        {query.length > 0 && (
+          <TouchableOpacity onPress={clearSearch} style={styles.clearButton}>
+            <Ionicons name="close-circle" size={20} color={COLORS.secondary[400]} />
+          </TouchableOpacity>
+        )}
+        {onClose && (
+          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <Text style={styles.closeButtonText}>Cancelar</Text>
+          </TouchableOpacity>
         )}
       </View>
 
-      {showResults && (
-        <View style={styles.resultsContainer}>
-          {results.length > 0 ? (
-            <FlatList
-              data={results}
-              renderItem={renderPlaceItem}
-              keyExtractor={(item) => item.id.toString()}
-              style={styles.resultsList}
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-            />
-          ) : !loading && query.length >= 3 ? (
-            <View style={styles.noResultsContainer}>
-              <Text style={styles.noResultsText}>
-                No se encontraron resultados para "{query}"
-              </Text>
-            </View>
-          ) : null}
+      {/* Indicador de carga */}
+      {isLoading && (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="small" color={COLORS.primary[600]} />
+          <Text style={styles.loadingText}>Buscando lugares...</Text>
         </View>
       )}
 
-      {!showResults && nearbyPlaces.length > 0 && (
-        <View style={styles.nearbyContainer}>
-          <Text style={styles.nearbyTitle}>Lugares cercanos</Text>
+      {/* Resultados de búsqueda */}
+      {showResults && (
+        <View style={styles.resultsContainer}>
+          {showCurrentLocation && (
+            <TouchableOpacity
+              style={[styles.resultItem, styles.currentLocationItem]}
+              onPress={handleCurrentLocation}
+            >
+              <View style={styles.placeInfo}>
+                <Ionicons 
+                  name="locate" 
+                  size={20} 
+                  color={COLORS.primary[600]} 
+                  style={styles.placeIcon}
+                />
+                <View style={styles.placeText}>
+                  <Text style={[styles.placeName, { color: COLORS.primary[600] }]}>
+                    Mi ubicación actual
+                  </Text>
+                  <Text style={styles.placeAddress}>
+                    Usar ubicación actual del GPS
+                  </Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+          )}
+
           <FlatList
-            data={nearbyPlaces}
-            renderItem={renderNearbyCategory}
-            keyExtractor={(item, index) => index.toString()}
+            data={results}
+            keyExtractor={(item) => item.id.toString()}
+            renderItem={renderPlaceItem}
             showsVerticalScrollIndicator={false}
-            style={styles.nearbyList}
+            keyboardShouldPersistTaps="handled"
+            maxHeight={300}
+          />
+
+          {results.length === 0 && !isLoading && query.length >= 3 && (
+            <View style={styles.noResultsContainer}>
+              <Ionicons name="search" size={40} color={COLORS.secondary[300]} />
+              <Text style={styles.noResultsText}>
+                No se encontraron lugares para "{query}"
+              </Text>
+              <Text style={styles.noResultsSubtext}>
+                Intenta con un término diferente
+              </Text>
+            </View>
+          )}
+        </View>
+      )}
+
+      {/* Búsquedas recientes */}
+      {!showResults && !isLoading && query.length === 0 && recentSearches.length > 0 && (
+        <View style={styles.recentContainer}>
+          <Text style={styles.recentTitle}>Búsquedas recientes</Text>
+          <FlatList
+            data={recentSearches}
+            keyExtractor={(item) => `recent-${item.id}`}
+            renderItem={renderPlaceItem}
+            showsVerticalScrollIndicator={false}
           />
         </View>
       )}
@@ -238,133 +301,117 @@ const PlaceSearchComponent = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: COLORS.white,
   },
-  searchContainer: {
+  searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.white,
-    borderRadius: BORDER_RADIUS.lg,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    marginHorizontal: SPACING.md,
-    marginVertical: SPACING.sm,
-    ...SHADOWS.medium,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.secondary[200],
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+  },
+  searchIcon: {
+    marginRight: 10,
   },
   searchInput: {
     flex: 1,
-    fontSize: TYPOGRAPHY.sizes.base,
-    color: COLORS.secondary[900],
-    paddingVertical: SPACING.xs,
+    fontSize: 16,
+    color: COLORS.secondary[800],
+    paddingVertical: 8,
   },
-  loadingIndicator: {
-    marginLeft: SPACING.sm,
+  clearButton: {
+    padding: 5,
+    marginLeft: 5,
+  },
+  closeButton: {
+    marginLeft: 10,
+    paddingHorizontal: 10,
+  },
+  closeButtonText: {
+    color: COLORS.primary[600],
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  loadingText: {
+    marginLeft: 10,
+    fontSize: 14,
+    color: COLORS.secondary[600],
   },
   resultsContainer: {
+    flex: 1,
     backgroundColor: COLORS.white,
-    marginHorizontal: SPACING.md,
-    borderRadius: BORDER_RADIUS.lg,
-    maxHeight: 300,
-    ...SHADOWS.medium,
-  },
-  resultsList: {
-    maxHeight: 300,
   },
   resultItem: {
     flexDirection: 'row',
-    padding: SPACING.md,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 15,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.secondary[100],
   },
-  resultContent: {
+  currentLocationItem: {
+    backgroundColor: COLORS.primary[50],
+    borderBottomWidth: 2,
+    borderBottomColor: COLORS.primary[200],
+  },
+  placeInfo: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  placeIcon: {
+    marginRight: 12,
+  },
+  placeText: {
     flex: 1,
   },
   placeName: {
-    fontSize: TYPOGRAPHY.sizes.base,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-    color: COLORS.secondary[900],
-    marginBottom: SPACING.xs,
+    fontSize: 16,
+    fontWeight: '500',
+    color: COLORS.secondary[800],
+    marginBottom: 2,
   },
   placeAddress: {
-    fontSize: TYPOGRAPHY.sizes.sm,
-    color: COLORS.secondary[600],
-    lineHeight: 18,
-  },
-  typeContainer: {
-    alignSelf: 'flex-start',
-    marginTop: SPACING.xs,
-  },
-  placeType: {
-    fontSize: TYPOGRAPHY.sizes.xs,
-    color: COLORS.primary[600],
-    backgroundColor: COLORS.primary[50],
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 2,
-    borderRadius: BORDER_RADIUS.sm,
-    textTransform: 'capitalize',
-  },
-  distanceContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    minWidth: 60,
-  },
-  distanceText: {
-    fontSize: TYPOGRAPHY.sizes.xs,
+    fontSize: 14,
     color: COLORS.secondary[500],
-    fontWeight: TYPOGRAPHY.weights.medium,
   },
   noResultsContainer: {
-    padding: SPACING.lg,
     alignItems: 'center',
+    justifyContent: 'center',
+    padding: 40,
   },
   noResultsText: {
-    fontSize: TYPOGRAPHY.sizes.sm,
+    fontSize: 16,
     color: COLORS.secondary[600],
     textAlign: 'center',
+    marginTop: 15,
+    marginBottom: 5,
   },
-  nearbyContainer: {
+  noResultsSubtext: {
+    fontSize: 14,
+    color: COLORS.secondary[400],
+    textAlign: 'center',
+  },
+  recentContainer: {
     flex: 1,
-    paddingHorizontal: SPACING.md,
-    paddingTop: SPACING.md,
-  },
-  nearbyTitle: {
-    fontSize: TYPOGRAPHY.sizes.lg,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-    color: COLORS.secondary[900],
-    marginBottom: SPACING.md,
-  },
-  nearbyList: {
-    flex: 1,
-  },
-  nearbyCategory: {
-    marginBottom: SPACING.lg,
-  },
-  categoryTitle: {
-    fontSize: TYPOGRAPHY.sizes.base,
-    fontWeight: TYPOGRAPHY.weights.medium,
-    color: COLORS.secondary[800],
-    marginBottom: SPACING.sm,
-  },
-  categoryPlaces: {
-    gap: SPACING.xs,
-  },
-  nearbyPlace: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     backgroundColor: COLORS.secondary[50],
-    padding: SPACING.sm,
-    borderRadius: BORDER_RADIUS.md,
   },
-  nearbyPlaceName: {
-    flex: 1,
-    fontSize: TYPOGRAPHY.sizes.sm,
-    color: COLORS.secondary[800],
-    marginRight: SPACING.sm,
-  },
-  nearbyPlaceDistance: {
-    fontSize: TYPOGRAPHY.sizes.xs,
-    color: COLORS.secondary[500],
-    fontWeight: TYPOGRAPHY.weights.medium,
+  recentTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.secondary[600],
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    backgroundColor: COLORS.secondary[100],
   },
 });
 
